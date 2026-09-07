@@ -697,14 +697,30 @@ function childValue(nm,metric,from,to){
   const sf=state.from,st=state.to;state.from=from;state.to=to;
   const m=metrics(salesFilt(cf),ebene+1,cf);state.from=sf;state.to=st;return m[metric];
 }
+// --- Vergleich nach Standort (statt Kinder des aktuellen Knotens) ---
+function standortNamen(){const fx=ROLLES[state.role].filter&&ROLLES[state.role].filter.ebene_2;
+  const s=new Set();F.sales.forEach(r=>{if(!fx||r.s===fx)s.add(r.s);});return [...s].sort();}
+function standortFarben(){const t={};F.sales.forEach(r=>{t[r.s]=(t[r.s]||0)+r.um;});
+  const kinder=Object.keys(t).map(s=>({ebene_2:s,umsatz_eur:t[s]}));return farbMap(kinder,"umsatz_eur","ebene_2");}
+function standortValue(nm,metric,from,to){
+  const cf=Object.assign({},ROLLES[state.role].filter||{});cf.ebene_2=nm;
+  const sf=state.from,st=state.to;state.from=from;state.to=to;
+  const m=metrics(salesFilt(cf),2,cf);state.from=sf;state.to=st;return m[metric];
+}
+// Wert im Vergleich je nach Dimension (Kinder des Knotens oder Standorte)
+function compareValue(nm,metric,from,to){
+  return (state.cmp&&state.cmp.dim==="standort")?standortValue(nm,metric,from,to):childValue(nm,metric,from,to);
+}
 function initCmp(){
   if(state.cmp)return;
   // Sinnvolle Voreinstellung: erster Monat gegen letzten Monat
   const ms=monthsIn(F.dmin,F.dmax);const first=ms[0],last=ms[ms.length-1];
   const aF=first+"-01",aT=monEnd(first),bF=last+"-01",bT=monEnd(last);
   const role=ROLLES[state.role];
-  state.cmp={metric:role.kennzahlen.find(k=>KPIS[k])||"umsatz_eur",aF,aT,bF,bT,sel:new Set(allChildNames())};
+  state.cmp={metric:role.kennzahlen.find(k=>KPIS[k])||"umsatz_eur",aF,aT,bF,bT,dim:"kinder",sel:new Set(allChildNames())};
 }
+function setCmpDim(d){state.cmp.dim=d;
+  state.cmp.sel=new Set(d==="standort"?standortNamen():allChildNames());renderCompare();}
 function weatherFor(names,from,to){
   const markets=names.filter(n=>F.weather.some(w=>w.s===n));
   const use=markets.length?markets:[...new Set(F.weather.map(w=>w.s))];
@@ -719,8 +735,14 @@ function toggleSel(nm,on){if(on)state.cmp.sel.add(nm);else state.cmp.sel.delete(
 function renderCompare(){
   initCmp();const c=state.cmp,role=ROLLES[state.role],el=document.getElementById("compare");
   const kENose=state.pfad.length?state.pfad[state.pfad.length-1]:"Gesamt";
-  const kindName=EBN[(role.start_ebene+state.pfad.length)+1]||"Knoten";
-  const names=allChildNames();
+  const curEb=role.start_ebene+state.pfad.length;
+  const kindName=EBN[curEb+1]||"Knoten";
+  // Dimension: Kinder des Knotens ODER Standorte (nur wenn Rolle >1 Standort sieht und man tiefer als Gesamt ist)
+  const stdNames=standortNamen(),canStd=stdNames.length>1,showDim=canStd&&curEb>1;
+  const dim=(c.dim==="standort"&&showDim)?"standort":"kinder";c.dim=dim;
+  const dimName=dim==="standort"?"Standort":kindName;
+  const names=dim==="standort"?stdNames:allChildNames();
+  if(![...c.sel].some(n=>names.includes(n)))c.sel=new Set(names);  // Auswahl an Dimension/Knoten anpassen
   // Vergleichs-Kennzahlen: Rollen-Kennzahlen + immer Umsatz/Ausgaben/Gewinn
   const cmpM=role.kennzahlen.filter(k=>KPIS[k]);
   ["umsatz_eur","kosten_eur","ergebnis_eur"].forEach(k=>{if(KPIS[k]&&!cmpM.includes(k)){
@@ -728,12 +750,16 @@ function renderCompare(){
   const metricOpts=cmpM.map(k=>`<option value="${k}" ${k===c.metric?"selected":""}>${kzLabel(k)}</option>`).join("");
   const presets=(who)=>{let h='<button data-k="all" onclick="cmpPreset(\''+who+'\',\'all\')">Gesamt</button>';
     monthsIn(F.dmin,F.dmax).forEach(mo=>{h+=`<button onclick="cmpPreset('${who}','${mo}')">${MON_DE[mo.slice(5,7)]}</button>`;});return h;};
-  const cfarb=knotenFarben();  // gleiche Farben wie im Ranking/Kuchen des Knotens
+  const cfarb=dim==="standort"?standortFarben():knotenFarben();  // Farben je Dimension, konsistent zum Ranking/Kuchen
   const chk=names.map((nm,i)=>`<label><input type="checkbox" ${c.sel.has(nm)?"checked":""} onchange="toggleSel('${String(nm).replace(/'/g,"\\'")}',this.checked)"><span class="sw" style="background:${cfarb[nm]||SERIES[i%SERIES.length]}"></span>${nm}</label>`).join("");
+  const dimToggle=showDim?`<div class="cmprow"><label class="f">Vergleich nach</label>
+      <span class="tgroup"><button class="${dim==="kinder"?"on":""}" onclick="setCmpDim('kinder')">${kindName}</button>
+      <button class="${dim==="standort"?"on":""}" onclick="setCmpDim('standort')">Standort</button></span></div>`:"";
   el.innerHTML=`
     <h2 class="node" style="margin-top:0">Vergleich · ${kENose}</h2>
-    <div class="subline">Zwei Zeiträume gegenüberstellen und ${kindName} manuell auswählen.</div>
+    <div class="subline">Zwei Zeiträume gegenüberstellen und ${dimName} manuell auswählen.</div>
     <div class="cmpbox">
+      ${dimToggle}
       <div class="cmprow"><label class="f">Kennzahl</label>
         <select onchange="setCmp('metric',this.value)">${metricOpts}</select></div>
       <div class="cmprow"><label class="f">Zeitraum A</label>
@@ -746,7 +772,7 @@ function renderCompare(){
         <span class="dash">–</span>
         <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.bT}" onchange="setCmp('bT',this.value)">
         <span class="tgroup">${presets('b')}</span></div>
-      <div class="cmprow"><label class="f">${kindName} auswählen</label><div class="cmpchk">${chk}</div></div>
+      <div class="cmprow"><label class="f">${dimName} auswählen</label><div class="cmpchk">${chk}</div></div>
     </div>
     <div class="cmpbox" id="cmpwetter"></div>
     <div class="card"><div id="cmpplot" class="plot"></div></div>
@@ -767,12 +793,13 @@ function drawCmpWetter(){
 function drawCompare(){
   const c=state.cmp,el=document.getElementById("cmpplot");if(!plReady(el))return;
   const kd=KPIS[c.metric],sel=[...c.sel];
-  const rows=sel.map(nm=>({nm,a:childValue(nm,c.metric,c.aF,c.aT),b:childValue(nm,c.metric,c.bF,c.bT)}))
+  const dimLabel=c.dim==="standort"?"Standort":(EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten");
+  const rows=sel.map(nm=>({nm,a:compareValue(nm,c.metric,c.aF,c.aT),b:compareValue(nm,c.metric,c.bF,c.bT)}))
     .filter(r=>r.a!=null||r.b!=null).sort((x,y)=>(y.b??y.a??0)-(x.b??x.a??0));
   const fmtv=v=>cmpFmt(v,c.metric);
   const dez=(c.metric==="wartezeit_min"||c.metric==="zufriedenheit")?2:(EINHEIT[c.metric]==="%"?1:0);
-  // feste Standort-/Produktfarben – konsistent zu Ranking/Kuchen; A kräftig, B hell
-  const cf=knotenFarben();
+  // feste Farben je Dimension – konsistent zu Ranking/Kuchen; A kräftig, B hell
+  const cf=c.dim==="standort"?standortFarben():knotenFarben();
   const cols=rows.map((r,i)=>cf[r.nm]||SERIES[i%SERIES.length]);
   const aLbl="A · "+fmtDE(c.aF)+"–"+fmtDE(c.aT), bLbl="B · "+fmtDE(c.bF)+"–"+fmtDE(c.bT);
   const trA={type:"bar",name:aLbl,x:rows.map(r=>r.nm),y:rows.map(r=>r.a),
@@ -781,7 +808,7 @@ function drawCompare(){
   const trB={type:"bar",name:bLbl,x:rows.map(r=>r.nm),y:rows.map(r=>r.b),
     marker:{color:cols.map(x=>lighten(x,0.55)),line:{color:cols,width:1.4}},offsetgroup:"b",showlegend:false,
     hovertemplate:"%{x}<br>"+bLbl+": %{y:,."+dez+"f}<extra></extra>"};
-  const lay=baseLayout(kzLabel(c.metric)+" – Zeitraum A gegen B je "+(EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten"),
+  const lay=baseLayout(kzLabel(c.metric)+" – Zeitraum A gegen B je "+dimLabel,
     "kräftig = Zeitraum A · hell = Zeitraum B",Math.max(360,140+30*rows.length));
   lay.barmode="group";lay.bargap=0.32;lay.bargroupgap=0.12;
   lay.yaxis.title={text:kzLabel(c.metric)+" ("+(EINHEIT[c.metric]||"")+")",font:{size:12,color:cssv("--ink-2")}};
@@ -801,7 +828,7 @@ function drawCompare(){
        <td class="mono">${dtot==null?"–":(dtot>=0?"▲ ":"▼ ")+Math.abs(dtot).toFixed(1).replace(".",",")+" %"}</td></tr>`
     :`<tr style="font-weight:600;color:var(--muted)"><td>Gesamt (Auswahl)</td><td class="mono">–</td><td class="mono">–</td>
        <td class="mono" style="font-weight:400">Ø/‑Kennzahl nicht summierbar</td></tr>`;
-  document.getElementById("cmptable").innerHTML=`<table><thead><tr><th>${EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten"}</th><th>Zeitraum A</th><th>Zeitraum B</th><th>Δ</th></tr></thead>
+  document.getElementById("cmptable").innerHTML=`<table><thead><tr><th>${dimLabel}</th><th>Zeitraum A</th><th>Zeitraum B</th><th>Δ</th></tr></thead>
     <tbody>${tr}${gesamtRow}</tbody></table>`;
 }
 function drill(name){state.pfad=[...state.pfad,name];state.cmp=null;render();}
