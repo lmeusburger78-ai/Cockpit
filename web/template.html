@@ -125,8 +125,9 @@ h2.node{font-size:27px;margin:2px 0 3px;letter-spacing:-.02em;text-wrap:balance}
   margin:30px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--hair)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}}
-.card{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:8px 10px 6px;box-shadow:var(--shadow)}
-.plot{width:100%}
+.card{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:8px 10px 6px;box-shadow:var(--shadow);overflow:hidden}
+.plot{width:100%;min-height:300px}
+#weather{min-height:430px}
 .pierow{display:grid;grid-template-columns:1fr 195px;gap:8px;align-items:center}
 @media(max-width:520px){.pierow{grid-template-columns:1fr}}
 .pierow #pieplot{min-width:0}
@@ -308,6 +309,14 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
     <h4>🚦 Ampel-Schwellen</h4>
     <p>Lege fest, ab wann eine Kennzahl <b style="color:var(--gruen)">grün</b>, <b style="color:var(--gelb)">gelb</b> oder <b style="color:var(--rot)">rot</b> leuchtet. Änderungen wirken sofort auf die Kacheln.</p>
     <div id="ampelrows"></div>
+    <h4 style="margin-top:22px">🎨 Ampel-Farben</h4>
+    <p>Farben frei wählen – z. B. Gelb durch <b>Orange</b> ersetzen oder ein kräftigeres Rot.</p>
+    <div class="setrow" style="border-top:none">
+      <label>Grün <input type="color" id="col-gruen" onchange="setAmpelFarbe('--gruen',this.value)"></label>
+      <label>Mitte (Gelb/Orange) <input type="color" id="col-gelb" onchange="setAmpelFarbe('--gelb',this.value)"></label>
+      <label>Rot <input type="color" id="col-rot" onchange="setAmpelFarbe('--rot',this.value)"></label>
+      <button class="chipbtn" onclick="resetAmpelFarben()">Zurücksetzen</button>
+    </div>
     <h4 style="margin-top:24px">📤 Excel aktualisieren</h4>
     <p>Neue oder erweiterte Excel-Datei laden – die Zahlen und Diagramme passen sich automatisch an. Der Import <b>ersetzt</b> die aktuell gezeigten Daten (keine Doppelzählung).</p>
     <label class="uploadbtn">📤 Excel-Datei wählen<input type="file" id="xlsxfile" accept=".xlsx" hidden></label>
@@ -454,10 +463,10 @@ function computeNode(){
     const mm=metrics(rr,ebene,filt);return Object.assign({periode:mo,ebene_1:EBENE1,ebene_2:std},mm);});
   // Kacheln
   const kacheln=role.kennzahlen.filter(k=>KPIS[k]).map(kid=>{
-    const kd=KPIS[kid],val=m[kid];let delta=null;
-    if(mPrev){const pv=mPrev[kid];if(pv!=null&&!isNaN(pv)&&pv!==0&&val!=null)delta=(val-pv)/Math.abs(pv)*100;}
+    const kd=KPIS[kid],val=m[kid];let delta=null,prev=null;
+    if(mPrev){const pv=mPrev[kid];if(pv!=null&&!isNaN(pv)&&val!=null){prev=pv;if(pv!==0)delta=(val-pv)/Math.abs(pv)*100;}}
     return {id:kid,name:kd.name,einheit:kd.einheit||"",wert:(val==null||isNaN(val))?null:val,
-      ampel:ampelOf(kid,val),delta_pct:delta,richtung:kd.richtung};
+      ampel:ampelOf(kid,val),delta_pct:delta,prev,richtung:kd.richtung};
   }).filter(k=>k.wert!=null);
   // Kinder (Ranking/Kuchen/Chips)
   let kinder=[],kinder_names=[];const kf=childField(ebene),kcf=childCostField(ebene);
@@ -776,14 +785,24 @@ function cmpUniverse(serie){return serie==="getraenk"?allProductNames():serie===
 function cmpFarbFor(serie){return serie==="getraenk"?productFarben():serie==="kostenart"?kostenartFarben():standortFarben();}
 function selectedMembers(serie){const uni=cmpUniverse(serie),s=state.cmp.selDim[serie];
   return (s&&s.size)?uni.filter(m=>s.has(m)):uni;}   // nichts gewählt => alle
-function toggleMember(nm,on){const s=state.cmp.selDim[state.cmp.serie];if(on)s.add(nm);else s.delete(nm);renderCompare();}
-function selAlle(){state.cmp.selDim[state.cmp.serie]=new Set();renderCompare();}
+function selSet(dim){const s=state.cmp.selDim[dim];return (s&&s.size)?s:null;}  // null => alle (kein Filter)
+function toggleDim(dim,nm,on){const s=state.cmp.selDim[dim];if(on)s.add(nm);else s.delete(nm);renderCompare();}
+function selAlleDim(dim){state.cmp.selDim[dim]=new Set();renderCompare();}
 // aktive Filter (nicht die Serie) als Text – damit die Auswahl im Diagramm sichtbar ist
 function cmpKontext(){const c=state.cmp,parts=[];
-  if(c.serie!=="standort")parts.push("Standort: "+(c.std==="alle"?"alle":c.std));
-  if(c.metric==="kosten_eur"){if(c.serie!=="kostenart")parts.push("Kostenart: "+(c.ka==="alle"?"alle":c.ka));}
-  else if(c.metric!=="ergebnis_eur"){if(c.serie!=="getraenk")parts.push("Getränk: "+(c.prod==="alle"?"alle Sorten":c.prod));}
+  const txt=(dim,label,allTxt)=>{const s=c.selDim[dim];if(!s||!s.size)return label+": "+allTxt;
+    return label+": "+([...s].length<=3?[...s].join(", "):s.size+" gewählt");};
+  if(c.serie!=="standort")parts.push(txt("standort","Standort","alle"));
+  if(c.metric==="kosten_eur"){if(c.serie!=="kostenart")parts.push(txt("kostenart","Kostenart","alle"));}
+  else if(c.metric!=="ergebnis_eur"){if(c.serie!=="getraenk")parts.push(txt("getraenk","Getränk","alle Sorten"));}
   return parts;
+}
+// Chip-Gruppe (Mehrfachauswahl) für eine Dimension
+function chipGroup(dim,labelText){
+  const uni=cmpUniverse(dim),s=state.cmp.selDim[dim],fb=cmpFarbFor(dim);
+  const chips=`<button class="chipbtn ${s.size?"":"on"}" onclick="selAlleDim('${dim}')">Alle</button>`+
+    uni.map(m=>`<label class="chipsel"><input type="checkbox" ${s.has(m)?"checked":""} onchange="toggleDim('${dim}','${String(m).replace(/'/g,"\\'")}',this.checked)"><span class="sw" style="background:${fb[m]||"#999"}"></span>${m}</label>`).join("");
+  return `<div class="cmprow"><label class="f">${labelText}</label><div class="cmpchk">${chips}</div></div>`;
 }
 const SER_PLURAL={Standort:"Standorte",Getränk:"Getränke",Kostenart:"Kostenarten"};
 // --- Vergleichs-Baukasten: Getränke, Kostenarten, Standorte ---
@@ -816,13 +835,12 @@ function cmpPivot(p,stdSet,itemSet,itemKind,metric){
   }
   return null;
 }
-function cmpAllStd(){return new Set(alleStandorte());}  // Vergleich: immer alle Standorte
 function cmpVal(p,member){
   const c=state.cmp,metric=c.metric,kost=(metric==="kosten_eur");
   if(c.serie==="standort"){const std=new Set([member]);
-    if(kost)return cmpPivot(p,std,c.ka==="alle"?null:new Set([c.ka]),"kostenart",metric);
-    return cmpPivot(p,std,c.prod==="alle"?null:new Set([c.prod]),"getraenk",metric);}
-  const std=c.std==="alle"?cmpAllStd():new Set([c.std]);
+    if(kost)return cmpPivot(p,std,selSet("kostenart"),"kostenart",metric);
+    return cmpPivot(p,std,selSet("getraenk"),"getraenk",metric);}
+  const std=selSet("standort")||new Set(alleStandorte());
   if(c.serie==="getraenk")return cmpPivot(p,std,new Set([member]),"getraenk",metric);
   return cmpPivot(p,std,new Set([member]),"kostenart",metric);
 }
@@ -840,14 +858,8 @@ function cmpBreakdowns(metric){
   if(metric==="ergebnis_eur")return [["standort","Standort"]];
   return [["standort","Standort"],["getraenk","Getränk"]];
 }
-function setCmp(k,v){const before=state.cmp.serie;state.cmp[k]=v;
+function setCmp(k,v){state.cmp[k]=v;
   if(k==="metric"){const bs=cmpBreakdowns(v).map(b=>b[0]);if(!bs.includes(state.cmp.serie))state.cmp.serie=bs[0];}
-  // beim Wechsel der Aufschlüsselung deren Auswahl auf "alle" setzen, damit sofort verglichen wird
-  if(k==="serie"||state.cmp.serie!==before){
-    if(state.cmp.serie==="standort")state.cmp.std="alle";
-    else if(state.cmp.serie==="getraenk")state.cmp.prod="alle";
-    else if(state.cmp.serie==="kostenart")state.cmp.ka="alle";
-  }
   renderCompare();}
 function setPeriod(i,k,v){state.cmp.perioden[i][k]=v;renderCompare();}
 function addPeriodMonth(mo){if(mo&&state.cmp.perioden.length<8)state.cmp.perioden.push({f:mo+"-01",t:monEnd(mo)});renderCompare();}
@@ -868,30 +880,13 @@ function renderCompare(){
   const metric=c.metric,istKost=metric==="kosten_eur",istGewinn=metric==="ergebnis_eur";
   const metricOpts=cmpMetrics().map(([k,l])=>`<option value="${k}" ${k===metric?"selected":""}>${l}</option>`).join("");
   const brOpts=cmpBreakdowns(metric).map(([k,l])=>`<option value="${k}" ${k===c.serie?"selected":""}>${l}</option>`).join("");
-  // Positions-Filter (Getränk oder Kostenart) – nur als Einzel-Filter, wenn es nicht selbst die Aufschlüsselung ist
+  // Aufschlüsselungs-Dimension (= Serie) als Mehrfachauswahl, plus die anderen Dimensionen als Mehrfach-Filter
+  const serPl={standort:"Standorte",getraenk:"Getränke",kostenart:"Kostenarten"}[c.serie];
+  const memberRow=chipGroup(c.serie,serPl+" vergleichen");
+  let stdRow=c.serie!=="standort"?chipGroup("standort","Standorte (Filter)"):"";
   let itemRow="";
-  if(istKost&&c.serie!=="kostenart"){
-    const opt=`<option value="alle" ${c.ka==="alle"?"selected":""}>Alle Kostenarten</option>`+
-      allKostenarten().map(k=>`<option value="${k}" ${k===c.ka?"selected":""}>${k}</option>`).join("");
-    itemRow=`<div class="cmprow"><label class="f">Kostenart</label><select onchange="setCmp('ka',this.value)">${opt}</select></div>`;
-  }else if(!istKost&&!istGewinn&&c.serie!=="getraenk"){
-    const opt=`<option value="alle" ${c.prod==="alle"?"selected":""}>Alle Sorten</option>`+
-      allProductNames().map(p=>`<option value="${p}" ${p===c.prod?"selected":""}>${p}</option>`).join("");
-    itemRow=`<div class="cmprow"><label class="f">Getränk</label><select onchange="setCmp('prod',this.value)">${opt}</select></div>`;
-  }
-  // Standort-Filter als Dropdown, wenn Standort NICHT die Aufschlüsselung ist
-  let stdRow="";
-  if(c.serie!=="standort"){
-    const stdOpts=`<option value="alle" ${c.std==="alle"?"selected":""}>Alle Standorte</option>`+
-      alleStandorte().map(s=>`<option value="${s}" ${s===c.std?"selected":""}>${s}</option>`).join("");
-    stdRow=`<div class="cmprow"><label class="f">Standort (Filter)</label><select onchange="setCmp('std',this.value)">${stdOpts}</select></div>`;
-  }
-  // Aufschlüsselungs-Dimension: Mehrfachauswahl (z. B. genau zwei Standorte vergleichen)
-  const uni=cmpUniverse(c.serie),selSet=c.selDim[c.serie],fb=cmpFarbFor(c.serie);
-  const serLabel=c.serie==="getraenk"?"Getränke":c.serie==="kostenart"?"Kostenarten":"Standorte";
-  const chips=`<button class="chipbtn ${selSet.size?"":"on"}" onclick="selAlle()">Alle</button>`+
-    uni.map(m=>`<label class="chipsel"><input type="checkbox" ${selSet.has(m)?"checked":""} onchange="toggleMember('${String(m).replace(/'/g,"\\'")}',this.checked)"><span class="sw" style="background:${fb[m]||"#999"}"></span>${m}</label>`).join("");
-  const memberRow=`<div class="cmprow"><label class="f">${serLabel} vergleichen</label><div class="cmpchk">${chips}</div></div>`;
+  if(istKost&&c.serie!=="kostenart")itemRow=chipGroup("kostenart","Kostenarten (Filter)");
+  else if(!istKost&&!istGewinn&&c.serie!=="getraenk")itemRow=chipGroup("getraenk","Getränke (Filter)");
   const monBtns=monthsIn(F.dmin,F.dmax).map(mo=>`<button onclick="addPeriodMonth('${mo}')">+ ${MON_DE[mo.slice(5,7)]}</button>`).join("");
   const perRows=c.perioden.map((p,i)=>`<div class="cmprow"><label class="f">Zeitraum ${i+1}</label>
       <input type="date" min="${F.dmin}" max="${F.dmax}" value="${p.f}" onchange="setPeriod(${i},'f',this.value)">
@@ -927,7 +922,7 @@ function drawCmpWetter(){
   // Wetter nur bei Einnahmen/Gewinn sinnvoll – bei Ausgaben ausblenden (kein Zusammenhang)
   if(c.metric==="kosten_eur"){el.hidden=true;el.innerHTML="";return;}
   el.hidden=false;
-  const stds=c.serie==="standort"?selectedMembers("standort"):(c.std==="alle"?alleStandorte():[c.std]);
+  const stds=c.serie==="standort"?selectedMembers("standort"):(selSet("standort")?[...selSet("standort")]:alleStandorte());
   const cell=(w)=>w?`Ø Temperatur <b>${w.temp.toFixed(1).replace(".",",")} °C</b> · Niederschlag <b>${Math.round(w.prec)} mm</b> · Regentage <b>${w.reg}</b>`:"keine Wetterdaten";
   const rows=c.perioden.map(p=>{const w=weatherFor(stds,p.f,p.t);
     return `<div class="cmprow"><label class="f" style="min-width:120px">${perLabel(p)}</label><span>${cell(w)}</span></div>`;}).join("");
@@ -1001,9 +996,16 @@ function renderKPIs(){
   el.innerHTML=n.kacheln.map(k=>{
     const val=fmt(k.wert,k.id).split(" ");const num=val.slice(0,-1).join(" ")||val[0];
     const unit=EINHEIT[k.id]||"";
-    let delta="";if(k.delta_pct!=null){const gut=(k.delta_pct>=0)===(k.richtung==="groesser_ist_besser");
-      const c=gut?cssv("--gruen"):cssv("--rot");const ar=k.delta_pct>=0?"▲":"▼";
-      delta=`<div class="k-delta" style="color:${c}">${ar} ${Math.abs(k.delta_pct).toFixed(1).replace(".",",")} % ${node().vergleich_label}</div>`;}
+    // Delta sinnvoll je Kennzahl: % nur wenn Basis stabil; Prozent-Kennzahlen als Prozentpunkte; Ergebnis absolut in €
+    let delta="";
+    if(k.prev!=null){
+      let d,txt;
+      if(EINHEIT[k.id]==="%"){d=k.wert-k.prev;txt=(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %p";}
+      else if(k.id==="ergebnis_eur"){d=k.wert-k.prev;txt=(d>=0?"▲ ":"▼ ")+fmtShort(Math.abs(d),"umsatz_eur");}
+      else if(k.prev!==0){d=(k.wert-k.prev)/Math.abs(k.prev)*100;txt=(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %";}
+      if(txt!=null){const gut=(d>=0)===(k.richtung==="groesser_ist_besser");
+        delta=`<div class="k-delta" style="color:${gut?cssv("--gruen"):cssv("--rot")}">${txt} ${node().vergleich_label}</div>`;}
+    }
     const dot=k.ampel?`<span class="dot" style="background:${statusCol(k.ampel)}"></span>`:"";
     const tip=GLOSS[k.id]?` title="${GLOSS[k.id]}"`:"";
     return `<div class="kpi"><div class="k-lbl"${tip} style="${GLOSS[k.id]?"cursor:help;text-decoration:underline dotted var(--hair);text-underline-offset:3px":""}">${dot}${k.name}</div>
@@ -1230,7 +1232,13 @@ function renderAmpelRows(){
   document.getElementById("ampelrows").innerHTML=rows;
 }
 function setAmpel(kid,which,val){const v=parseFloat(String(val).replace(",","."));if(!isNaN(v)){AMPEL[kid][which]=v;render();}}
-function openSettings(){renderAmpelRows();document.getElementById("settings").classList.add("open");}
+function toHex(c){c=c.trim();if(c[0]==="#")return c.length===4?"#"+[...c.slice(1)].map(x=>x+x).join(""):c;
+  const m=c.match(/\d+/g);if(!m)return "#000000";return "#"+m.slice(0,3).map(n=>(+n).toString(16).padStart(2,"0")).join("");}
+const AMPEL_DEFAULT={"--gruen":cssv("--gruen"),"--gelb":cssv("--gelb"),"--rot":cssv("--rot")};
+function setAmpelFarbe(varName,val){document.documentElement.style.setProperty(varName,val);render();}
+function resetAmpelFarben(){Object.keys(AMPEL_DEFAULT).forEach(k=>document.documentElement.style.removeProperty(k));syncAmpelFarbInputs();render();}
+function syncAmpelFarbInputs(){[["gruen"],["gelb"],["rot"]].forEach(([k])=>{const el=document.getElementById("col-"+k);if(el)el.value=toHex(cssv("--"+k));});}
+function openSettings(){renderAmpelRows();syncAmpelFarbInputs();document.getElementById("settings").classList.add("open");}
 document.getElementById("settingsbtn").onclick=openSettings;
 document.getElementById("gearbtn").onclick=openSettings;
 document.getElementById("closeset").onclick=()=>document.getElementById("settings").classList.remove("open");
