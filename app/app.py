@@ -167,48 +167,53 @@ st.write("")
 kann_tiefer = ebene < max_ebene
 kinder = service.naechste_knoten(fakten, kpis, rolle, pfad) if kann_tiefer else pd.DataFrame()
 kind_ebene = f"ebene_{ebene + 1}"
+kind_name = ebenen_namen.get(ebene + 1, "Knoten")
+PLOT = {"displayModeBar": False}
+hat_kinder = kann_tiefer and not kinder.empty and kind_ebene in kinder.columns
 
-links, rechts = st.columns([3, 2])
+st.markdown(f"### Aufteilung nach {kind_name}" if hat_kinder else "### Verlauf")
 
-with links:
-    if kann_tiefer and not kinder.empty and kind_ebene in kinder.columns:
-        # Leitkennzahl der Rolle für das Ranking
-        leit = next((k for k in rolle["kennzahlen"] if k in kinder.columns), None)
-        if leit:
-            kdef = kpis[leit]
-            unter = f"je {ebenen_namen.get(ebene + 1, 'Knoten')} · Klick auf einen Balken-Knoten unten führt tiefer"
-            st.plotly_chart(
-                charts.ranking(kinder, leit, kdef, kind_ebene,
-                               f"{kdef['name']} nach {ebenen_namen.get(ebene + 1, 'Knoten')}", unter),
-                use_container_width=True, config={"displayModeBar": False})
-    else:
-        # Unterste erlaubte Ebene: Verlauf über die Monate
-        leit = next((k for k in rolle["kennzahlen"] if k in fakten["kennzahl_id"].values), "umsatz_eur")
-        kdef = kpis.get(leit, {"name": leit})
-        monat = service.sicht(fakten, kpis, {"_": rolle}, "_", pfad, nach_monat=True)
-        if not monat.empty and leit in monat.columns:
-            gruppe = f"ebene_{ebene}" if f"ebene_{ebene}" in monat.columns else "ebene_1"
-            st.plotly_chart(
-                charts.trend(monat, leit, kdef, gruppe,
-                             f"{kdef.get('name', leit)} über die Monate", "unterste Ebene dieser Rolle"),
-                use_container_width=True, config={"displayModeBar": False})
-
-with rechts:
-    # GuV-Wasserfall, wenn Umsatz und Kosten sichtbar sind
-    if {"umsatz_eur", "kosten_eur"} <= set(rolle["kennzahlen"]):
-        g = service.verdichte(fakten, kpis, ebene, _filter(rolle, pfad), nach_monat=False)
-        if not g.empty and pd.notna(g["umsatz_eur"].iloc[0]):
-            arten = _kostenarten(fakten, rolle, pfad)
-            if arten:
-                st.plotly_chart(
-                    charts.guv_wasserfall(float(g["umsatz_eur"].iloc[0]), arten,
-                                          "Ergebnisrechnung", f"{titel_ort} · Gesamtzeitraum"),
-                    use_container_width=True, config={"displayModeBar": False})
-    elif kann_tiefer and not kinder.empty and "umsatz_eur" in kinder.columns:
+if hat_kinder:
+    # Leitkennzahl der Rolle (für Ranking und Kuchen dieselbe Farbe je Knoten)
+    leit = next((k for k in rolle["kennzahlen"] if k in kinder.columns), "umsatz_eur")
+    kdef = kpis.get(leit, {"name": leit})
+    links, rechts = st.columns(2)
+    with links:
         st.plotly_chart(
-            charts.treemap(kinder, [kind_ebene], "umsatz_eur", "Umsatzanteile",
-                           f"je {ebenen_namen.get(ebene + 1, 'Knoten')}"),
-            use_container_width=True, config={"displayModeBar": False})
+            charts.ranking(kinder, leit, kdef, kind_ebene,
+                           f"{kdef['name']} nach {kind_name}", "größter Wert oben"),
+            use_container_width=True, config=PLOT)
+    with rechts:
+        # Kuchen-/Donut: Anteil je Knoten an der Gesamtsumme
+        kuchen_kid = "umsatz_eur" if "umsatz_eur" in kinder.columns else leit
+        kkdef = kpis.get(kuchen_kid, {"name": kuchen_kid})
+        st.plotly_chart(
+            charts.kuchen(kinder, kind_ebene, kuchen_kid, f"{kkdef['name']} gesamt",
+                          f"{kkdef['name']}-Anteile je {kind_name}", "Segmentgröße = Anteil am Ganzen"),
+            use_container_width=True, config=PLOT)
+else:
+    # Unterste erlaubte Ebene: Verlauf über die Monate
+    leit = next((k for k in rolle["kennzahlen"] if k in fakten["kennzahl_id"].values), "umsatz_eur")
+    kdef = kpis.get(leit, {"name": leit})
+    monat = service.sicht(fakten, kpis, {"_": rolle}, "_", pfad, nach_monat=True)
+    if not monat.empty and leit in monat.columns:
+        gruppe = f"ebene_{ebene}" if f"ebene_{ebene}" in monat.columns else "ebene_1"
+        st.plotly_chart(
+            charts.trend(monat, leit, kdef, gruppe,
+                         f"{kdef.get('name', leit)} über die Monate", f"{titel_ort} · unterste Ebene dieser Rolle"),
+            use_container_width=True, config=PLOT)
+
+# GuV-Wasserfall über die volle Breite, wenn Umsatz und Kosten sichtbar sind
+if {"umsatz_eur", "kosten_eur"} <= set(rolle["kennzahlen"]):
+    g = service.verdichte(fakten, kpis, ebene, _filter(rolle, pfad), nach_monat=False)
+    arten = _kostenarten(fakten, rolle, pfad)
+    if not g.empty and pd.notna(g["umsatz_eur"].iloc[0]) and arten:
+        st.markdown("### Ergebnisrechnung")
+        st.plotly_chart(
+            charts.guv_wasserfall(float(g["umsatz_eur"].iloc[0]), arten,
+                                  "Umsatz minus Kostenarten ergibt das Ergebnis",
+                                  f"{titel_ort} · Gesamtzeitraum"),
+            use_container_width=True, config=PLOT)
 
 # ----------------------------------------------------------------- Drill-Down-Knöpfe
 if kann_tiefer and not kinder.empty and kind_ebene in kinder.columns:

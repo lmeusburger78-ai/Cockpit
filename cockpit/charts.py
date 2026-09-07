@@ -139,3 +139,31 @@ def treemap(df: pd.DataFrame, pfad: list[str], wert: str, titel: str,
     lay = theme.layout(titel, untertitel, hoehe=460)
     fig.update_layout(lay)
     return fig
+
+def kuchen(df: pd.DataFrame, label_spalte: str, wert: str, gesamt_label: str,
+           titel: str, untertitel: str = "") -> go.Figure:
+    """Kuchen-/Donut-Diagramm der Aufteilung einer Summe (z. B. Umsatz je Standort).
+    Jedes Segment zeigt Name, Betrag und Anteil; in der Mitte steht die Gesamtsumme.
+    Nur fuer Teil-zum-Ganzen mit wenigen Segmenten (<= 6)."""
+    d = df.dropna(subset=[wert]).sort_values(wert, ascending=False)
+    labels = d[label_spalte].astype(str).tolist()
+    werte = d[wert].tolist()
+    summe = sum(werte)
+    farben = [theme.KATEGORIAL[i % len(theme.KATEGORIAL)] for i in range(len(labels))]
+    fig = go.Figure(go.Pie(
+        labels=labels, values=werte, hole=0.5, sort=False, direction="clockwise",
+        marker=dict(colors=farben, line=dict(color=theme.SURFACE, width=2)),
+        text=[f"{n}<br>{theme.eur(v)}" for n, v in zip(labels, werte)],
+        texttemplate="%{text}<br>%{percent}", textposition="outside",
+        textfont=dict(color=theme.INK2, size=12),
+        hovertemplate="%{label}<br>%{value:,.0f} €<br>Anteil: %{percent}<extra></extra>",
+        insidetextorientation="horizontal", automargin=True,
+    ))
+    fig.add_annotation(text=f"<b>{theme.eur(summe)}</b><br><span style='font-size:12px'>{gesamt_label}</span>",
+                       showarrow=False, font=dict(color=theme.INK, size=17, family=theme.FONT),
+                       x=0.5, y=0.5)
+    lay = theme.layout(titel, untertitel, hoehe=520)
+    lay["showlegend"] = False  # jedes Segment ist direkt beschriftet – Legende wäre doppelt
+    lay["margin"] = dict(l=90, r=90, t=96, b=70)
+    fig.update_layout(lay)
+    return fig
