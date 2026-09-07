@@ -61,6 +61,12 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
 .uploadbtn:hover{background:var(--surface-2)}
 #uploadmsg{font-size:12px;margin-top:6px}
 #uploadmsg.ok{color:var(--gruen)} #uploadmsg.err{color:var(--rot)}
+.setrow{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:11px 0;border-top:1px solid var(--hair)}
+.setrow .setname{min-width:210px;font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:8px}
+.setrow .setname .dot{width:11px;height:11px;border-radius:50%;flex:none}
+.setrow label{font-size:12.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.setrow input{width:78px;border:1px solid var(--hair);border-radius:7px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;padding:5px 7px}
+.sethint{font-size:11.5px;color:var(--muted);width:100%}
 .modebar{display:inline-flex;border:1px solid var(--hair);border-radius:9px;overflow:hidden;background:var(--surface);margin-bottom:14px}
 .modebar button{border:none;background:none;color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer}
 .modebar button.on{background:var(--ink);color:var(--surface)}
@@ -202,8 +208,7 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
       <div class="srcrow"><span class="ic">🌤️</span><div class="t"><b>Wetter (Ø aller Märkte)</b><br><span>Open-Meteo · Temperatur &amp; Niederschlag</span></div></div>
     </div>
     <div>
-      <label class="uploadbtn">📤 Excel laden &amp; anzeigen<input type="file" id="xlsxfile" accept=".xlsx" hidden></label>
-      <div id="uploadmsg"></div>
+      <button class="uploadbtn" id="settingsbtn">⚙️ Einstellungen &amp; Excel-Upload</button>
     </div>
     <button class="theme-tog" id="themebtn">◐ Hell / Dunkel</button>
     <button class="help-btn" id="helpbtn">ℹ︎ Excel-Upload: so geht's</button>
@@ -280,6 +285,21 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
 
     <h4>🧭 Verdichtung &amp; Adressaten</h4>
     <p>Alle Uploads landen in <b>einem Kennzahlen-Modell</b>. Jede Rolle sieht nur ihre Kennzahlen und ihren Ausschnitt, verdichtet bis zur erlaubten Tiefe — von der Geschäftsführung (Unternehmen → Standort) bis zur Standleitung (eigener Markt → Produkt → Größe). Diese Vorschau zeigt echte Zahlen aus der Beispiel-Excel; im Live-Cockpit kommen Login und weitere Rollen dazu.</p>
+  </div>
+</div>
+
+<div class="modal" id="settings">
+  <div class="sheet">
+    <button class="closex" id="closeset">✕</button>
+    <h3>⚙️ Einstellungen</h3>
+    <p class="lead">Ampel-Schwellen anpassen und Excel-Daten aktualisieren.</p>
+    <h4>🚦 Ampel-Schwellen</h4>
+    <p>Lege fest, ab wann eine Kennzahl <b style="color:var(--gruen)">grün</b>, <b style="color:var(--gelb)">gelb</b> oder <b style="color:var(--rot)">rot</b> leuchtet. Änderungen wirken sofort auf die Kacheln.</p>
+    <div id="ampelrows"></div>
+    <h4 style="margin-top:24px">📤 Excel aktualisieren</h4>
+    <p>Neue oder erweiterte Excel-Datei laden – die Zahlen und Diagramme passen sich automatisch an. Der Import <b>ersetzt</b> die aktuell gezeigten Daten (keine Doppelzählung).</p>
+    <label class="uploadbtn">📤 Excel-Datei wählen<input type="file" id="xlsxfile" accept=".xlsx" hidden></label>
+    <div id="uploadmsg"></div>
   </div>
 </div>
 
@@ -595,19 +615,21 @@ function weather(el,w){
   if(!plReady(el))return;
   const d=w.taeglich;if(!d||!d.length){el.innerHTML="";return;}
   const x=d.map(r=>r.datum);
+  // eigene Wetterfarben – bewusst NICHT die Standortfarben (Temperatur = warmes Rot, Niederschlag = Blaugrau)
+  const TEMP="#d1495b", PREC="#4a86b8";
   const band=(d[0].temperatur_max_c!=null && d[0].temperatur_min_c!=null);
   const tmax={type:"scatter",mode:"lines",x,y:d.map(r=>r.temperatur_max_c),xaxis:"x",yaxis:"y",
-    line:{color:SERIES[1],width:0},hovertemplate:"%{x|%d.%m.}<br>Höchst %{y:.1f} °C<extra></extra>",showlegend:false};
+    line:{color:TEMP,width:0},hovertemplate:"%{x|%d.%m.}<br>Höchst %{y:.1f} °C<extra></extra>",showlegend:false};
   const tmin={type:"scatter",mode:"lines",x,y:d.map(r=>r.temperatur_min_c),xaxis:"x",yaxis:"y",
-    line:{color:SERIES[1],width:0},fill:"tonexty",fillcolor:"rgba(235,104,52,0.15)",
+    line:{color:TEMP,width:0},fill:"tonexty",fillcolor:"rgba(209,73,91,0.14)",
     hovertemplate:"%{x|%d.%m.}<br>Tief %{y:.1f} °C<extra></extra>",showlegend:false};
   const t1={type:"scatter",mode:"lines",x,y:d.map(r=>r.temperatur_c),xaxis:"x",yaxis:"y",
-    line:{color:SERIES[1],width:2},hovertemplate:"%{x|%d.%m.}<br>Ø %{y:.1f} °C<extra></extra>",name:"Tagesmittel"};
-  const t2={type:"bar",x,y:d.map(r=>r.niederschlag_mm),xaxis:"x",yaxis:"y2",marker:{color:SERIES[0]},
+    line:{color:TEMP,width:2},hovertemplate:"%{x|%d.%m.}<br>Ø %{y:.1f} °C<extra></extra>",name:"Tagesmittel"};
+  const t2={type:"bar",x,y:d.map(r=>r.niederschlag_mm),xaxis:"x",yaxis:"y2",marker:{color:PREC},
     hovertemplate:"%{x|%d.%m.}<br>%{y:.1f} mm<extra></extra>",name:"Niederschlag"};
   const ink2=cssv("--ink-2"),hair=cssv("--hair"),axis=cssv("--axis"),ink=cssv("--ink");
-  const wo="alle Märkte gemittelt · Fläche = Tagestief–Tageshoch, Linie = Tagesmittel";
-  const lay={title:{text:`Temperatur und Niederschlag je Tag<br><span style="font-size:12px;color:${ink2}">${wo} · eigenes Standortwetter</span>`,
+  const wo=(w.std?("Markt "+w.std):"alle Märkte gemittelt")+" · Fläche = Tagestief–Tageshoch, Linie = Tagesmittel";
+  const lay={title:{text:`Temperatur und Niederschlag je Tag<br><span style="font-size:12px;color:${ink2}">${wo}</span>`,
       font:{size:16,color:ink,family:"IBM Plex Sans"},x:0,xanchor:"left",y:.97,yanchor:"top"},
     font:{family:"IBM Plex Sans",color:ink2,size:12.5},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
     height:430,margin:{l:66,r:24,t:64,b:44},showlegend:false,
@@ -641,7 +663,7 @@ function produktMengen(el,prod){
   // Headroom, damit die Zahl (z. B. "9.162 Stk") rechts am Balkenende voll sichtbar bleibt
   const maxV=d.length?Math.max(...d.map(r=>r.v)):0;
   lay.xaxis.range=[0,maxV*1.18||1];
-  const PROD_FARBE="#6a4bd8";  // eigene, eindeutige Produktfarbe (kein Standort belegt sie)
+  const PROD_FARBE="#5b7186";  // neutrale Produktfarbe (Schiefer/Slate – kein Standort belegt sie)
   const tr={type:"bar",orientation:"h",x:d.map(r=>r.v),y:d.map(r=>r.produkt),
     marker:{color:PROD_FARBE},
     text:d.map(r=>isU?fmtShort(r.v,"umsatz_eur"):Math.round(r.v).toLocaleString("de-DE")+" Stk"),
@@ -658,22 +680,23 @@ function setProd(kind,val){
 function salesWeather(el,tu,wd,markt){
   if(!plReady(el))return;
   const ink2=cssv("--ink-2"),hair=cssv("--hair"),axis=cssv("--axis"),ink=cssv("--ink");
+  const TEMP="#d1495b", PREC="#4a86b8", UMS="#2f6f4f";  // Temp=Rot, Regen=Blaugrau, Umsatz=neutrales Grün
   const xu=tu.map(r=>r.datum), wtag=tu.map(r=>r.wochentag||"");
-  const umsatz={type:"bar",x:xu,y:tu.map(r=>r.umsatz_eur),xaxis:"x",yaxis:"y",marker:{color:SERIES[0]},
+  const umsatz={type:"bar",x:xu,y:tu.map(r=>r.umsatz_eur),xaxis:"x",yaxis:"y",marker:{color:UMS},
     customdata:wtag,hovertemplate:"%{x|%d.%m.%Y} (%{customdata})<br>Umsatz %{y:,.0f} €<extra></extra>"};
   const traces=[umsatz];
   if(wd&&wd.length){
     const x=wd.map(r=>r.datum), band=(wd[0].temperatur_max_c!=null&&wd[0].temperatur_min_c!=null);
     if(band){
       traces.push({type:"scatter",mode:"lines",x,y:wd.map(r=>r.temperatur_max_c),xaxis:"x",yaxis:"y2",
-        line:{color:SERIES[1],width:0},showlegend:false,hovertemplate:"%{x|%d.%m.}<br>Höchst %{y:.1f} °C<extra></extra>"});
+        line:{color:TEMP,width:0},showlegend:false,hovertemplate:"%{x|%d.%m.}<br>Höchst %{y:.1f} °C<extra></extra>"});
       traces.push({type:"scatter",mode:"lines",x,y:wd.map(r=>r.temperatur_min_c),xaxis:"x",yaxis:"y2",
-        line:{color:SERIES[1],width:0},fill:"tonexty",fillcolor:"rgba(235,104,52,0.15)",showlegend:false,
+        line:{color:TEMP,width:0},fill:"tonexty",fillcolor:"rgba(209,73,91,0.14)",showlegend:false,
         hovertemplate:"%{x|%d.%m.}<br>Tief %{y:.1f} °C<extra></extra>"});
     }
     traces.push({type:"scatter",mode:"lines",x,y:wd.map(r=>r.temperatur_c),xaxis:"x",yaxis:"y2",
-      line:{color:SERIES[1],width:2},showlegend:false,hovertemplate:"%{x|%d.%m.}<br>Ø %{y:.1f} °C<extra></extra>"});
-    traces.push({type:"bar",x,y:wd.map(r=>r.niederschlag_mm),xaxis:"x",yaxis:"y3",marker:{color:SERIES[0]},
+      line:{color:TEMP,width:2},showlegend:false,hovertemplate:"%{x|%d.%m.}<br>Ø %{y:.1f} °C<extra></extra>"});
+    traces.push({type:"bar",x,y:wd.map(r=>r.niederschlag_mm),xaxis:"x",yaxis:"y3",marker:{color:PREC},
       showlegend:false,hovertemplate:"%{x|%d.%m.}<br>%{y:.1f} mm<extra></extra>"});
   }
   const lay={title:{text:`Absatz &amp; Wetter je Tag<br><span style="font-size:12px;color:${ink2}">Markt ${markt} · Umsatz oben, Temperatur (Fläche = Tief–Hoch) &amp; Niederschlag unten · Wochentag im Tooltip</span>`,
@@ -733,8 +756,16 @@ function initCmp(){
   const ms=monthsIn(F.dmin,F.dmax);const first=ms[0],last=ms[ms.length-1];
   state.cmp={metric:"umsatz_eur",
     perioden:[{f:first+"-01",t:monEnd(first)},{f:last+"-01",t:monEnd(last)}],
-    std:"alle",prod:"alle",ka:"alle",serie:"standort"};
+    std:"alle",prod:"alle",ka:"alle",serie:"standort",orient:"zeit"};
 }
+// aktive Filter (nicht die Serie) als Text – damit die Auswahl im Diagramm sichtbar ist
+function cmpKontext(){const c=state.cmp,parts=[];
+  if(c.serie!=="standort")parts.push("Standort: "+(c.std==="alle"?"alle":c.std));
+  if(c.metric==="kosten_eur"){if(c.serie!=="kostenart")parts.push("Kostenart: "+(c.ka==="alle"?"alle":c.ka));}
+  else if(c.metric!=="ergebnis_eur"){if(c.serie!=="getraenk")parts.push("Getränk: "+(c.prod==="alle"?"alle Sorten":c.prod));}
+  return parts;
+}
+const SER_PLURAL={Standort:"Standorte",Getränk:"Getränke",Kostenart:"Kostenarten"};
 // --- Vergleichs-Baukasten: Getränke, Kostenarten, Standorte ---
 function allProductNames(){const s=new Set();F.sales.forEach(r=>s.add(r.p));return [...s].sort();}
 function productFarben(){const t={};F.sales.forEach(r=>{t[r.p]=(t[r.p]||0)+r.um;});
@@ -765,7 +796,7 @@ function cmpPivot(p,stdSet,itemSet,itemKind,metric){
   }
   return null;
 }
-function cmpAllStd(){return new Set(standortNamen());}
+function cmpAllStd(){return new Set(alleStandorte());}  // Vergleich: immer alle Standorte
 function cmpVal(p,member){
   const c=state.cmp,metric=c.metric,kost=(metric==="kosten_eur");
   if(c.serie==="standort"){const std=new Set([member]);
@@ -778,7 +809,7 @@ function cmpVal(p,member){
 function cmpSeries(){const c=state.cmp;
   if(c.serie==="getraenk")return {members:c.prod==="alle"?allProductNames():[c.prod],farb:productFarben(),label:"Getränk"};
   if(c.serie==="kostenart")return {members:c.ka==="alle"?allKostenarten():[c.ka],farb:kostenartFarben(),label:"Kostenart"};
-  return {members:c.std==="alle"?standortNamen():[c.std],farb:standortFarben(),label:"Standort"};
+  return {members:c.std==="alle"?alleStandorte():[c.std],farb:standortFarben(),label:"Standort"};
 }
 function perLabel(p){const mo=p.f.slice(0,7);
   if(p.f.slice(8)==="01"&&p.t===monEnd(mo))return MON_DE[mo.slice(5,7)]+" "+mo.slice(2,4);
@@ -790,8 +821,14 @@ function cmpBreakdowns(metric){
   if(metric==="ergebnis_eur")return [["standort","Standort"]];
   return [["standort","Standort"],["getraenk","Getränk"]];
 }
-function setCmp(k,v){state.cmp[k]=v;
+function setCmp(k,v){const before=state.cmp.serie;state.cmp[k]=v;
   if(k==="metric"){const bs=cmpBreakdowns(v).map(b=>b[0]);if(!bs.includes(state.cmp.serie))state.cmp.serie=bs[0];}
+  // beim Wechsel der Aufschlüsselung deren Auswahl auf "alle" setzen, damit sofort verglichen wird
+  if(k==="serie"||state.cmp.serie!==before){
+    if(state.cmp.serie==="standort")state.cmp.std="alle";
+    else if(state.cmp.serie==="getraenk")state.cmp.prod="alle";
+    else if(state.cmp.serie==="kostenart")state.cmp.ka="alle";
+  }
   renderCompare();}
 function setPeriod(i,k,v){state.cmp.perioden[i][k]=v;renderCompare();}
 function addPeriodMonth(mo){if(mo&&state.cmp.perioden.length<8)state.cmp.perioden.push({f:mo+"-01",t:monEnd(mo)});renderCompare();}
@@ -813,7 +850,7 @@ function renderCompare(){
   const metricOpts=cmpMetrics().map(([k,l])=>`<option value="${k}" ${k===metric?"selected":""}>${l}</option>`).join("");
   const brOpts=cmpBreakdowns(metric).map(([k,l])=>`<option value="${k}" ${k===c.serie?"selected":""}>${l}</option>`).join("");
   const stdOpts=`<option value="alle" ${c.std==="alle"?"selected":""}>Alle Standorte</option>`+
-    standortNamen().map(s=>`<option value="${s}" ${s===c.std?"selected":""}>${s}</option>`).join("");
+    alleStandorte().map(s=>`<option value="${s}" ${s===c.std?"selected":""}>${s}</option>`).join("");
   // Positions-Filter (Getränk oder Kostenart) – nur wenn es nicht selbst die Aufschlüsselung ist
   let itemRow="";
   if(istKost&&c.serie!=="kostenart"){
@@ -839,6 +876,10 @@ function renderCompare(){
     <div class="cmpbox">
       <div class="cmprow"><label class="f">Kennzahl</label><select onchange="setCmp('metric',this.value)">${metricOpts}</select></div>
       <div class="cmprow"><label class="f">Aufschlüsseln nach</label><select onchange="setCmp('serie',this.value)">${brOpts}</select></div>
+      <div class="cmprow"><label class="f">X-Achse</label><select onchange="setCmp('orient',this.value)">
+        <option value="zeit" ${c.orient!=="serie"?"selected":""}>Zeiträume nebeneinander</option>
+        <option value="serie" ${c.orient==="serie"?"selected":""}>${(SER_PLURAL[cmpBreakdowns(metric).find(b=>b[0]===c.serie)?.[1]]||"Kategorien")} nebeneinander</option>
+      </select></div>
       ${stdRow}
       ${itemRow}
       <div style="border-top:1px solid var(--hair);margin:8px 0 12px"></div>
@@ -857,7 +898,7 @@ function drawCmpWetter(){
   // Wetter nur bei Einnahmen/Gewinn sinnvoll – bei Ausgaben ausblenden (kein Zusammenhang)
   if(c.metric==="kosten_eur"){el.hidden=true;el.innerHTML="";return;}
   el.hidden=false;
-  const stds=c.std==="alle"?standortNamen():[c.std];
+  const stds=c.std==="alle"?alleStandorte():[c.std];
   const cell=(w)=>w?`Ø Temperatur <b>${w.temp.toFixed(1).replace(".",",")} °C</b> · Niederschlag <b>${Math.round(w.prec)} mm</b> · Regentage <b>${w.reg}</b>`:"keine Wetterdaten";
   const rows=c.perioden.map(p=>{const w=weatherFor(stds,p.f,p.t);
     return `<div class="cmprow"><label class="f" style="min-width:120px">${perLabel(p)}</label><span>${cell(w)}</span></div>`;}).join("");
@@ -869,17 +910,32 @@ function drawCompare(){
   const {members,farb,label}=cmpSeries();
   const per=c.perioden,xlab=per.map(perLabel);
   const dez=(metric==="wartezeit_min"||metric==="zufriedenheit")?2:0;
-  const data=members.map((m,i)=>{const col=farb[m]||SERIES[i%SERIES.length];
-    return {type:"bar",name:m,x:xlab,y:per.map(p=>cmpVal(p,m)),marker:{color:col},
-      hovertemplate:"%{x} · "+m+"<br>%{y:,."+dez+"f} "+(EINHEIT[metric]||"")+"<extra></extra>"};
-  }).filter(tr=>tr.y.some(v=>v!=null));
-  const lay=baseLayout(kzLabel(metric)+" – Vergleich nach "+label,
-    per.length>1?"Zeiträume nebeneinander":"",Math.max(340,110+24*members.length));
+  const einh=EINHEIT[metric]||"",serie=c.orient==="serie";
+  let data,legendOn;
+  if(serie){
+    // X-Achse = Serie (z. B. Standorte nebeneinander): Farbe = feste Entitätsfarbe, Zeitraum als Schattierung
+    const shade=pi=>per.length<=1?0:Math.min(0.12+pi*(0.6/(per.length-1)),0.72);
+    data=per.map((p,pi)=>({type:"bar",name:perLabel(p),x:members,y:members.map(m=>cmpVal(p,m)),
+      marker:{color:members.map((m,i)=>lighten(farb[m]||SERIES[i%SERIES.length],shade(pi)))},
+      hovertemplate:perLabel(p)+" · %{x}<br>%{y:,."+dez+"f} "+einh+"<extra></extra>"}));
+    legendOn=false;  // Farbe = Standort (auf X-Achse), Zeitraum über Schattierung erklärt
+  }else{
+    // X-Achse = Zeiträume, Farbe = Serie (feste Entitätsfarbe)
+    data=members.map((m,i)=>({type:"bar",name:m,x:xlab,y:per.map(p=>cmpVal(p,m)),
+      marker:{color:farb[m]||SERIES[i%SERIES.length]},
+      hovertemplate:"%{x} · "+m+"<br>%{y:,."+dez+"f} "+einh+"<extra></extra>"})).filter(tr=>tr.y.some(v=>v!=null));
+    legendOn=members.length>1;
+  }
+  // Untertitel zeigt die aktive Auswahl (Filter) an
+  const kontext=cmpKontext();
+  const sub=[serie?(SER_PLURAL[label]||label)+" nebeneinander · Farbe = "+label+(per.length>1?" · heller = späterer Zeitraum":""):"Zeiträume nebeneinander"].concat(kontext).join(" · ");
+  const nBars=serie?per.length:members.length;
+  const lay=baseLayout(kzLabel(metric)+" nach "+label,sub,Math.max(340,110+24*(serie?members.length:members.length)));
   lay.barmode="group";lay.bargap=0.3;lay.bargroupgap=0.1;
-  lay.yaxis.title={text:kzLabel(metric)+" ("+(EINHEIT[metric]||"")+")",font:{size:12,color:cssv("--ink-2")}};
-  lay.yaxis.rangemode="tozero";lay.showlegend=members.length>1;
+  lay.yaxis.title={text:kzLabel(metric)+" ("+einh+")",font:{size:12,color:cssv("--ink-2")}};
+  lay.yaxis.rangemode="tozero";lay.showlegend=legendOn;
   lay.legend={orientation:"h",y:-0.16,font:{color:cssv("--ink-2"),size:12}};
-  lay.margin={l:76,r:24,t:64,b:members.length>1?88:56};
+  lay.margin={l:76,r:24,t:70,b:legendOn?92:56};
   Plotly.newPlot(el,data,lay,CFG);
   // Tabelle: Zeilen = Serie, Spalten = Zeiträume (+ Δ letzter/erster)
   const additiv=ADDITIV.has(metric),fmtv=v=>cmpFmt(v,metric),mehr=per.length>1;
@@ -1133,6 +1189,22 @@ function initRoles(){
 document.getElementById("helpbtn").onclick=()=>document.getElementById("modal").classList.add("open");
 document.getElementById("closex").onclick=()=>document.getElementById("modal").classList.remove("open");
 document.getElementById("modal").onclick=e=>{if(e.target.id==="modal")e.target.classList.remove("open");};
+// ---- Einstellungen (Ampel-Schwellen + Excel) ----
+function renderAmpelRows(){
+  const rows=Object.keys(AMPEL).map(kid=>{const a=AMPEL[kid],nm=KPIS[kid]?KPIS[kid].name:kid,e=EINHEIT[kid]||"";
+    const l1=a.dir==="kl"?"grün bis":"grün ab",l2=a.dir==="kl"?"gelb bis":"gelb ab";
+    const richt=a.dir==="kl"?"kleiner ist besser":"größer ist besser";
+    return `<div class="setrow"><div class="setname"><span class="dot" style="background:var(--gruen)"></span>${nm} <span style="color:var(--muted);font-weight:400">(${e})</span></div>
+      <label>${l1} <input type="number" step="any" value="${a.g}" onchange="setAmpel('${kid}','g',this.value)"></label>
+      <label>${l2} <input type="number" step="any" value="${a.y}" onchange="setAmpel('${kid}','y',this.value)"></label>
+      <span class="sethint">${richt} · außerhalb der Gelb-Schwelle wird rot</span></div>`;}).join("");
+  document.getElementById("ampelrows").innerHTML=rows;
+}
+function setAmpel(kid,which,val){const v=parseFloat(String(val).replace(",","."));if(!isNaN(v)){AMPEL[kid][which]=v;render();}}
+function openSettings(){renderAmpelRows();document.getElementById("settings").classList.add("open");}
+document.getElementById("settingsbtn").onclick=openSettings;
+document.getElementById("closeset").onclick=()=>document.getElementById("settings").classList.remove("open");
+document.getElementById("settings").onclick=e=>{if(e.target.id==="settings")e.target.classList.remove("open");};
 document.getElementById("themebtn").onclick=()=>{const r=document.documentElement;
   const cur=r.getAttribute("data-theme");const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
   r.setAttribute("data-theme",dark?"light":"dark");render();};

@@ -223,7 +223,7 @@ def produkt_mengen(df, titel: str, untertitel: str = "", kennzahl: str = "menge"
     d = df.assign(_v=wert, _g=gegen).sort_values("_v")
     fig = go.Figure(go.Bar(
         x=d["_v"], y=d["produkt"], orientation="h",
-        marker=dict(color="#6a4bd8"),  # eigene Produktfarbe, keine Standortfarbe
+        marker=dict(color="#5b7186"),  # neutrale Produktfarbe (Slate), keine Standortfarbe
         text=[(theme.eur(v) if ist_umsatz else f"{v:,.0f} Stk".replace(",", ".")) for v in d["_v"]],
         textposition="outside", textfont=dict(color=theme.INK2, size=12), cliponaxis=False,
         customdata=[(f"{g:,.0f} Becher".replace(",", ".") if ist_umsatz else theme.eur(g)) for g in d["_g"]],
