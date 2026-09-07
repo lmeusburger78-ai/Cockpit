@@ -60,6 +60,19 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
 .uploadbtn:hover{background:var(--surface-2)}
 #uploadmsg{font-size:12px;margin-top:6px}
 #uploadmsg.ok{color:var(--gruen)} #uploadmsg.err{color:var(--rot)}
+.modebar{display:inline-flex;border:1px solid var(--hair);border-radius:9px;overflow:hidden;background:var(--surface);margin-bottom:14px}
+.modebar button{border:none;background:none;color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer}
+.modebar button.on{background:var(--ink);color:var(--surface)}
+.modebar button+button{border-left:1px solid var(--hair)}
+.cmpbox{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:16px 18px;margin-bottom:18px;box-shadow:var(--shadow)}
+.cmpbox h4{margin:0 0 12px;font-size:14px}
+.cmprow{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.cmprow label.f{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.cmprow input[type=date]{border:1px solid var(--hair);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;padding:5px 8px}
+.cmpchk{display:flex;flex-wrap:wrap;gap:8px}
+.cmpchk label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hair);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
+.cmpchk label .sw{width:11px;height:11px;border-radius:3px}
+.cmpchk input{accent-color:var(--accent)}
 
 /* Main */
 .main{padding:26px 30px 60px;max-width:1240px}
@@ -187,6 +200,11 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
 
   <main class="main">
     <div class="crumbs" id="crumbs"></div>
+    <div class="modebar">
+      <button id="mode-u" class="on" onclick="setMode('uebersicht')">Übersicht</button>
+      <button id="mode-v" onclick="setMode('vergleich')">Vergleich</button>
+    </div>
+    <div id="normal">
     <div class="daterange">
       <span class="tglabel">Zeitraum</span>
       <input type="date" id="dfrom"><span class="dash">–</span><input type="date" id="dto">
@@ -210,6 +228,8 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
     <details class="tbl"><summary>Tabelle &amp; Monatswerte dieses Knotens</summary>
       <div class="tblwrap" id="table"></div>
     </details>
+    </div>
+    <div id="compare" hidden></div>
   </main>
 </div>
 
@@ -587,8 +607,124 @@ function salesWeather(el,tu,wd,markt){
 }
 
 // ---------- render ----------
-function drill(name){state.pfad=[...state.pfad,name];render();}
-function goto(i){state.pfad=state.pfad.slice(0,i);render();}
+
+state.mode="uebersicht";state.cmp=null;
+function setMode(m){state.mode=m;
+  document.getElementById("mode-u").className=m==="uebersicht"?"on":"";
+  document.getElementById("mode-v").className=m==="vergleich"?"on":"";
+  document.getElementById("normal").hidden=(m!=="uebersicht");
+  document.getElementById("compare").hidden=(m!=="vergleich");
+  render();
+}
+function allChildNames(){
+  const role=ROLLES[state.role],start=role.start_ebene,ebene=start+state.pfad.length;
+  const filt=filterOf(role,state.pfad),kf=childField(ebene),kcf=childCostField(ebene);
+  const set=new Set();
+  if(kf)F.sales.forEach(r=>{let ok=true;if(filt.ebene_2&&r.s!==filt.ebene_2)ok=false;
+    if(filt.ebene_3&&r.p!==filt.ebene_3)ok=false;if(!ok)return;
+    set.add(kf==="s"?r.s:kf==="p"?r.p:(r.g==="klein"?"klein 0,2 l":"groß 0,4 l"));});
+  if(kcf)F.costs.forEach(c=>{if(filt.ebene_2&&c.ks!==filt.ebene_2)return;set.add(c[kcf]);});
+  return [...set].sort();
+}
+function childValue(nm,metric,from,to){
+  const role=ROLLES[state.role],start=role.start_ebene,ebene=start+state.pfad.length;
+  const filt=filterOf(role,state.pfad);const cf=Object.assign({},filt);cf["ebene_"+(ebene+1)]=nm;
+  const sf=state.from,st=state.to;state.from=from;state.to=to;
+  const m=metrics(salesFilt(cf),ebene+1,cf);state.from=sf;state.to=st;return m[metric];
+}
+function initCmp(){
+  if(state.cmp)return;
+  // Sinnvolle Voreinstellung: erster Monat gegen letzten Monat
+  const ms=monthsIn(F.dmin,F.dmax);const first=ms[0],last=ms[ms.length-1];
+  const aF=first+"-01",aT=monEnd(first),bF=last+"-01",bT=monEnd(last);
+  const role=ROLLES[state.role];
+  state.cmp={metric:role.kennzahlen.find(k=>KPIS[k])||"umsatz_eur",aF,aT,bF,bT,sel:new Set(allChildNames())};
+}
+function weatherFor(names,from,to){
+  const markets=names.filter(n=>F.weather.some(w=>w.s===n));
+  const use=markets.length?markets:[...new Set(F.weather.map(w=>w.s))];
+  let tSum=0,tN=0,precTot=0,regTot=0,mN=0;
+  use.forEach(st=>{const rr=F.weather.filter(w=>w.s===st&&w.d>=from&&w.d<=to);if(!rr.length)return;mN++;
+    rr.forEach(w=>{tSum+=w.tmean;tN++;});precTot+=rr.reduce((a,w)=>a+w.prec,0);regTot+=rr.filter(w=>w.prec>0).length;});
+  if(!tN)return null;
+  return {temp:tSum/tN,prec:precTot/(mN||1),reg:Math.round(regTot/(mN||1))};
+}
+function setCmp(k,v){state.cmp[k]=v;renderCompare();}
+function toggleSel(nm,on){if(on)state.cmp.sel.add(nm);else state.cmp.sel.delete(nm);renderCompare();}
+function renderCompare(){
+  initCmp();const c=state.cmp,role=ROLLES[state.role],el=document.getElementById("compare");
+  const kENose=state.pfad.length?state.pfad[state.pfad.length-1]:"Gesamt";
+  const kindName=EBN[(role.start_ebene+state.pfad.length)+1]||"Knoten";
+  const names=allChildNames();
+  const metricOpts=role.kennzahlen.filter(k=>KPIS[k]).map(k=>`<option value="${k}" ${k===c.metric?"selected":""}>${KPIS[k].name}</option>`).join("");
+  const presets=(who)=>{let h='<button data-k="all" onclick="cmpPreset(\''+who+'\',\'all\')">Gesamt</button>';
+    monthsIn(F.dmin,F.dmax).forEach(mo=>{h+=`<button onclick="cmpPreset('${who}','${mo}')">${MON_DE[mo.slice(5,7)]}</button>`;});return h;};
+  const chk=names.map((nm,i)=>`<label><input type="checkbox" ${c.sel.has(nm)?"checked":""} onchange="toggleSel('${String(nm).replace(/'/g,"\\'")}',this.checked)"><span class="sw" style="background:${SERIES[i%SERIES.length]}"></span>${nm}</label>`).join("");
+  el.innerHTML=`
+    <h2 class="node" style="margin-top:0">Vergleich · ${kENose}</h2>
+    <div class="subline">Zwei Zeiträume gegenüberstellen und ${kindName} manuell auswählen.</div>
+    <div class="cmpbox">
+      <div class="cmprow"><label class="f">Kennzahl</label>
+        <select onchange="setCmp('metric',this.value)">${metricOpts}</select></div>
+      <div class="cmprow"><label class="f">Zeitraum A</label>
+        <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.aF}" onchange="setCmp('aF',this.value)">
+        <span class="dash">–</span>
+        <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.aT}" onchange="setCmp('aT',this.value)">
+        <span class="tgroup">${presets('a')}</span></div>
+      <div class="cmprow"><label class="f">Zeitraum B</label>
+        <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.bF}" onchange="setCmp('bF',this.value)">
+        <span class="dash">–</span>
+        <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.bT}" onchange="setCmp('bT',this.value)">
+        <span class="tgroup">${presets('b')}</span></div>
+      <div class="cmprow"><label class="f">${kindName} auswählen</label><div class="cmpchk">${chk}</div></div>
+    </div>
+    <div class="cmpbox" id="cmpwetter"></div>
+    <div class="card"><div id="cmpplot" class="plot"></div></div>
+    <div class="tblwrap" id="cmptable" style="margin-top:14px"></div>`;
+  drawCompare();
+  drawCmpWetter();
+}
+function cmpPreset(who,k){const f=(who==="a")?"aF":"bF",t=(who==="a")?"aT":"bT";
+  if(k==="all"){state.cmp[f]=F.dmin;state.cmp[t]=F.dmax;}else{state.cmp[f]=k+"-01";state.cmp[t]=monEnd(k);}renderCompare();}
+function drawCmpWetter(){
+  const c=state.cmp,sel=[...c.sel],el=document.getElementById("cmpwetter");if(!el)return;
+  const wa=weatherFor(sel,c.aF,c.aT),wb=weatherFor(sel,c.bF,c.bT);
+  const cell=(w)=>w?`Ø Temperatur <b>${w.temp.toFixed(1).replace(".",",")} °C</b> · Niederschlag <b>${Math.round(w.prec)} mm</b> · Regentage <b>${w.reg}</b>`:"keine Wetterdaten";
+  el.innerHTML=`<h4>🌤️ Wetter je Zeitraum <span style="font-weight:400;color:var(--muted);font-size:12px">(Ø der gewählten Standorte)</span></h4>
+    <div class="cmprow"><label class="f" style="min-width:96px">Zeitraum A</label><span>${cell(wa)}</span></div>
+    <div class="cmprow"><label class="f" style="min-width:96px">Zeitraum B</label><span>${cell(wb)}</span></div>`;
+}
+function drawCompare(){
+  const c=state.cmp,el=document.getElementById("cmpplot");if(!plReady(el))return;
+  const kd=KPIS[c.metric],sel=[...c.sel];
+  const rows=sel.map(nm=>({nm,a:childValue(nm,c.metric,c.aF,c.aT),b:childValue(nm,c.metric,c.bF,c.bT)}))
+    .filter(r=>r.a!=null||r.b!=null).sort((x,y)=>(y.b??y.a??0)-(x.b??x.a??0));
+  const isU=(EINHEIT[c.metric]==="€");
+  const fmtv=v=>v==null?"–":(isU?fmtShort(v,c.metric):(EINHEIT[c.metric]==="%"?v.toFixed(1).replace(".",",")+" %":Math.round(v).toLocaleString("de-DE")+" "+(EINHEIT[c.metric]||"")));
+  const trA={type:"bar",name:"A: "+fmtDE(c.aF)+"–"+fmtDE(c.aT),x:rows.map(r=>r.nm),y:rows.map(r=>r.a),
+    marker:{color:SERIES[0]},hovertemplate:"%{x}<br>A: %{y:,.0f}<extra></extra>"};
+  const trB={type:"bar",name:"B: "+fmtDE(c.bF)+"–"+fmtDE(c.bT),x:rows.map(r=>r.nm),y:rows.map(r=>r.b),
+    marker:{color:SERIES[1]},hovertemplate:"%{x}<br>B: %{y:,.0f}<extra></extra>"};
+  const lay=baseLayout(kd.name+" – Zeitraum A gegen B",EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"",Math.max(380,120+30*rows.length));
+  lay.barmode="group";lay.bargap=0.28;lay.bargroupgap=0.12;
+  lay.yaxis.title={text:kd.name+" ("+(EINHEIT[c.metric]||"")+")",font:{size:12,color:cssv("--ink-2")}};
+  lay.yaxis.rangemode="tozero";lay.showlegend=true;
+  lay.legend={orientation:"h",y:-0.18,font:{color:cssv("--ink-2"),size:12}};
+  lay.margin={l:70,r:24,t:64,b:70};
+  Plotly.newPlot(el,[trA,trB],lay,CFG);
+  // Tabelle
+  let tot={a:0,b:0};rows.forEach(r=>{tot.a+=r.a||0;tot.b+=r.b||0;});
+  const tr=rows.map(r=>{const d=(r.a&&r.b)?((r.b-r.a)/Math.abs(r.a)*100):null;
+    const dc=d==null?"":(((d>=0)===(kd.richtung==="groesser_ist_besser"))?cssv("--gruen"):cssv("--rot"));
+    return `<tr><td>${r.nm}</td><td class="mono">${fmtv(r.a)}</td><td class="mono">${fmtv(r.b)}</td>
+      <td class="mono" style="color:${dc}">${d==null?"–":(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %"}</td></tr>`;}).join("");
+  const dtot=(tot.a&&tot.b)?((tot.b-tot.a)/Math.abs(tot.a)*100):null;
+  document.getElementById("cmptable").innerHTML=`<table><thead><tr><th>${EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten"}</th><th>Zeitraum A</th><th>Zeitraum B</th><th>Δ</th></tr></thead>
+    <tbody>${tr}<tr style="font-weight:600"><td>Gesamt (Auswahl)</td><td class="mono">${fmtv(tot.a)}</td><td class="mono">${fmtv(tot.b)}</td>
+    <td class="mono">${dtot==null?"–":(dtot>=0?"▲ ":"▼ ")+Math.abs(dtot).toFixed(1).replace(".",",")+" %"}</td></tr></tbody></table>`;
+}
+function drill(name){state.pfad=[...state.pfad,name];state.cmp=null;render();}
+function goto(i){state.pfad=state.pfad.slice(0,i);state.cmp=null;render();}
 
 function renderCrumbs(){
   const n=node(),start=ROLLES[state.role].start_ebene;
@@ -693,7 +829,8 @@ function renderTable(){
 }
 function render(){
   CUR=computeNode();
-  renderCrumbs();renderHead();renderKPIs();
+  renderCrumbs();
+  if(state.mode==="vergleich"){renderCompare();return;}renderHead();renderKPIs();
   renderSplit();renderResult();renderProdukte();renderWeatherPanel();renderDrill();renderTable();
 }
 
@@ -794,7 +931,7 @@ document.getElementById("themebtn").onclick=()=>{const r=document.documentElemen
   r.setAttribute("data-theme",dark?"light":"dark");render();};
 initDates();initRoles();render();
 document.getElementById("xlsxfile").addEventListener("change",e=>{if(e.target.files[0])importExcel(e.target.files[0]);});  // Text sofort; Diagramme sobald Plotly geladen ist
-window.goto=goto;window.drill=drill;window.setProd=setProd;window.setRange=setRange;
+window.goto=goto;window.drill=drill;window.setProd=setProd;window.setRange=setRange;window.setMode=setMode;window.setCmp=setCmp;window.toggleSel=toggleSel;window.cmpPreset=cmpPreset;
 (function loadPlotly(){
   var srcs=["https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js",
             "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"];
