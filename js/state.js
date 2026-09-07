@@ -11,6 +11,7 @@ window.Cockpit = window.Cockpit || {};
   const DEFAULTS = {
     portfolio: null,   // wird beim ersten Start aus DEFAULT_PORTFOLIO gefüllt
     watchlist: null,
+    customUniverse: {}, // vom Nutzer manuell angelegte Titel
     settings: {
       provider: "demo",     // "demo" | "finnhub"
       finnhubKey: "",
@@ -29,7 +30,10 @@ window.Cockpit = window.Cockpit || {};
     store = raw || {};
     if (!store.portfolio) store.portfolio = C.DEFAULT_PORTFOLIO.map((x) => ({ ...x }));
     if (!store.watchlist) store.watchlist = [...C.DEFAULT_WATCHLIST];
+    if (!store.customUniverse) store.customUniverse = {};
     store.settings = Object.assign({}, DEFAULTS.settings, store.settings || {});
+    // Eigene Titel ins Universum übernehmen
+    Object.assign(C.UNIVERSE, store.customUniverse);
   }
 
   function persist() {
@@ -52,6 +56,15 @@ window.Cockpit = window.Cockpit || {};
     removeHolding(sym) {
       store.portfolio = store.portfolio.filter((p) => p.symbol !== sym);
       persist();
+    },
+
+    // ---- Eigene (manuelle) Titel ----
+    addCustomStock(sym, name, sector) {
+      const s = sym.toUpperCase().trim();
+      store.customUniverse[s] = { name: name || s, sector: sector || "Sonstige", base: 100 };
+      C.UNIVERSE[s] = store.customUniverse[s];
+      persist();
+      return s;
     },
 
     // ---- Watchlist ----

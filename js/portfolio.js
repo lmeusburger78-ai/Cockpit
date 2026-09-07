@@ -304,16 +304,35 @@ window.Cockpit = window.Cockpit || {};
   /* ---------- Position hinzufügen/bearbeiten ---------- */
   function openHoldingModal(existing) {
     const isEdit = !!existing;
-    const opts = Object.keys(C.UNIVERSE).map((s) =>
-      el("option", { value: s, ...(existing && existing.symbol === s ? { selected: "selected" } : {}) },
-        `${s} · ${C.UNIVERSE[s].name}`)
-    );
+    const sortedSyms = Object.keys(C.UNIVERSE).sort((a, b) =>
+      C.UNIVERSE[a].name.localeCompare(C.UNIVERSE[b].name));
+    const opts = [
+      el("option", { value: "__custom__" }, "➕ Anderer Titel (manuell) …"),
+      ...sortedSyms.map((s) =>
+        el("option", { value: s, ...(existing && existing.symbol === s ? { selected: "selected" } : {}) },
+          `${s} · ${C.UNIVERSE[s].name}`)),
+    ];
     const symSel = el("select", { id: "f-sym", ...(isEdit ? { disabled: "disabled" } : {}) }, opts);
     const shares = el("input", { type: "number", id: "f-shares", min: "0", step: "any", value: existing ? existing.shares : "" });
     const avg = el("input", { type: "number", id: "f-avg", min: "0", step: "any", value: existing ? existing.avgPrice : "" });
 
+    // Felder für manuellen Titel
+    const cSym = el("input", { type: "text", id: "f-csym", placeholder: "z. B. VOE.VI" });
+    const cName = el("input", { type: "text", id: "f-cname", placeholder: "z. B. voestalpine" });
+    const cSector = el("select", { id: "f-csector" }, C.SECTORS.map((s) => el("option", { value: s }, s)));
+    const customBox = el("div", { class: "full", hidden: "hidden", style: "border:1px dashed var(--border);border-radius:10px;padding:12px;" }, [
+      el("div", { class: "form-grid" }, [
+        el("label", { class: "field" }, ["Symbol", cSym]),
+        el("label", { class: "field" }, ["Name", cName]),
+        el("label", { class: "field full" }, ["Branche", cSector]),
+      ]),
+      el("p", { class: "hint", html: "Tipp: Für Live-Daten das Finnhub-Symbol nutzen (US: <b>AAPL</b>, Wien: <b>VOE.VI</b>, Frankfurt: <b>BMW.DE</b>)." }),
+    ]);
+    symSel.addEventListener("change", () => { customBox.hidden = symSel.value !== "__custom__"; });
+
     const body = el("div", { class: "form-grid" }, [
       el("label", { class: "field full" }, ["Aktie", symSel]),
+      customBox,
       el("label", { class: "field" }, ["Stückzahl", shares]),
       el("label", { class: "field" }, ["Ø Kaufkurs", avg]),
       el("div", { class: "full", style: "display:flex;gap:10px;justify-content:flex-end;margin-top:8px;" }, [
@@ -321,11 +340,13 @@ window.Cockpit = window.Cockpit || {};
         el("button", {
           class: "btn",
           onclick: () => {
-            const h = {
-              symbol: symSel.value,
-              shares: parseFloat(shares.value),
-              avgPrice: parseFloat(avg.value),
-            };
+            let symbol = symSel.value;
+            if (symbol === "__custom__") {
+              const s = (cSym.value || "").trim();
+              if (!s) { C.toast("Bitte ein Symbol für den manuellen Titel angeben."); return; }
+              symbol = C.state.addCustomStock(s, cName.value, cSector.value);
+            }
+            const h = { symbol, shares: parseFloat(shares.value), avgPrice: parseFloat(avg.value) };
             if (!h.symbol || !(h.shares > 0) || !(h.avgPrice >= 0)) {
               C.toast("Bitte gültige Stückzahl und Kaufkurs angeben."); return;
             }
@@ -338,6 +359,8 @@ window.Cockpit = window.Cockpit || {};
       ]),
     ]);
     C.openModal(isEdit ? "Position bearbeiten" : "Position hinzufügen", body);
+    // Bei Bearbeitung eines bestehenden Titels ist das Select deaktiviert → korrekte Vorauswahl sicherstellen
+    if (isEdit) symSel.value = existing.symbol;
   }
 
   /* ---------- kleine Tabellen-Helfer ---------- */
