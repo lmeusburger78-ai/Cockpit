@@ -148,3 +148,26 @@ pip install -r requirements.txt
 python scripts/demo_drilldown.py          # Import, Prüfbericht, DuckDB, Drill-Down
 python -m pytest                          # 14 Tests gegen die Excel-Formelwerte
 ```
+
+## 7. Was, wenn sich die Gliederung der Excel ändert?
+
+Genau dafür gibt es das Mapping-Profil. Es steht zwischen der Excel und dem
+Modell und übersetzt Spalten- und Blattnamen. Drei Fälle:
+
+- **Kleine Änderung** (Spalte umbenannt, Blatt anders benannt, Kopfzeile
+  verschoben, neue Kostenart): Es wird **nur die YAML-Datei**
+  `config/mappings/limonadenstaende.yaml` angepasst – eine Zeile ändern, kein
+  Programmcode. Neue Standorte, Produkte oder Kostenarten brauchen gar keine
+  Änderung, sie fließen automatisch mit.
+- **Ganz neues Format** (andere Quelle liefert anders aufgebaute Dateien): Es
+  wird ein **zweites Profil** angelegt, z. B. `config/mappings/vertrieb.yaml`.
+  Beide Formate lassen sich dann parallel hochladen; im Modell landen sie in
+  derselben Tabelle.
+- **Sicherheitsnetz**: Passt eine hochgeladene Datei nicht mehr zum Profil
+  (fehlende Spalte, unbekannte Kennzahl), **lehnt der Prüfbericht den Import ab**
+  und nennt den Grund. So kommen nie stillschweigend falsche Zahlen ins Cockpit;
+  im Zweifel wird eine Zeile im Profil nachgezogen.
+
+Kurz: Änderungen an der Excel bleiben an einer Stelle (dem Profil) lokal und
+sind eine Konfigurations-, keine Programmieraufgabe – und der Prüfbericht fängt
+den Fall ab, dass eine Änderung übersehen wurde.

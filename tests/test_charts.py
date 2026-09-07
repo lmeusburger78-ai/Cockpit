@@ -55,3 +55,17 @@ def test_trend_und_treemap(daten):
     kinder = service.naechste_knoten(fakten, kpis, rollen["geschaeftsfuehrung"], ())
     tm = charts.treemap(kinder, ["ebene_2"], "umsatz_eur", "T", "U")
     assert tm.data[0].type == "treemap"
+
+
+def test_wetter_panel(daten):
+    _, _, fakten = daten
+    import pandas as pd
+
+    from cockpit.ingest.weather import csv_zu_fakten
+    wf = csv_zu_fakten(str(BEISPIEL.parent / "wetter_wien.csv"))
+    alle = pd.concat([fakten, wf], ignore_index=True)
+    d = service.wetter_taeglich(alle)
+    assert len(d) == 92 and {"temperatur_c", "niederschlag_mm"} <= set(d.columns)
+    fig = charts.wetter_panel(d, "T", "U")
+    assert len(fig.data) == 2
+    assert fig.data[0].type == "scatter" and fig.data[1].type == "bar"

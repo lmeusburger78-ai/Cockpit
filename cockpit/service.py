@@ -11,10 +11,12 @@ from cockpit.aggregate import ampel as ampel_farbe
 from cockpit.aggregate import sicht, verdichte
 from cockpit.config import lade_hierarchie, lade_kpis, lade_mapping, lade_rollen
 from cockpit.ingest.excel import excel_zu_fakten
+from cockpit.ingest.weather import WETTER_KNOTEN, csv_zu_fakten
 from cockpit.model import EBENEN, pruefe
 from cockpit.store import Store
 
 BEISPIEL = Path(__file__).resolve().parent.parent / "examples" / "limonadenstaende.xlsx"
+BEISPIEL_WETTER = Path(__file__).resolve().parent.parent / "examples" / "wetter_wien.csv"
 
 
 def konfig() -> tuple[dict, dict, dict]:
@@ -24,10 +26,15 @@ def konfig() -> tuple[dict, dict, dict]:
 def store_mit_beispiel(pfad: str = "data/cockpit.duckdb") -> Store:
     """Öffnet den Speicher und lädt einmalig die Beispieldatei, falls leer."""
     store = Store(pfad)
+    kpis = lade_kpis()
     if store.quellen().empty and BEISPIEL.exists():
         fakten = excel_zu_fakten(BEISPIEL, lade_mapping("limonadenstaende"))
-        if pruefe(fakten, lade_kpis()).ok:
+        if pruefe(fakten, kpis).ok:
             store.ersetze_quelle(fakten)
+        if BEISPIEL_WETTER.exists():
+            wetter = csv_zu_fakten(BEISPIEL_WETTER)
+            if pruefe(wetter, kpis).ok:
+                store.ersetze_quelle(wetter)
     return store
 
 
@@ -94,5 +101,31 @@ def naechste_knoten(fakten: pd.DataFrame, kpis: dict, rolle: dict,
     return verdichte(fakten, kpis, kind_ebene, _filter(rolle, pfad), nach_monat=False)
 
 
+def wetter_taeglich(fakten: pd.DataFrame) -> pd.DataFrame:
+    """Tageswerte des Wetters (Temperatur, Niederschlag) als breite Tabelle –
+    Grundlage des Wetter-Panels. Leer, wenn keine Wetterdaten geladen sind."""
+    w = fakten[fakten["ebene_2"] == WETTER_KNOTEN]
+    if w.empty:
+        return pd.DataFrame(columns=["datum", "temperatur_c", "niederschlag_mm"])
+    breit = w.pivot_table(index="datum", columns="kennzahl_id", values="wert", aggfunc="mean")
+    return breit.reset_index().sort_values("datum")
+
+
+def wetter_kennzahlen(fakten: pd.DataFrame, kpis: dict) -> list[dict]:
+    """Kompakte Wetter-Kennzahlen des Zeitraums (Ø Temperatur, Niederschlag gesamt)."""
+    d = wetter_taeglich(fakten)
+    if d.empty:
+        return []
+    return [
+        {"name": kpis["temperatur_c"]["name"], "einheit": "°C",
+         "wert": round(d["temperatur_c"].mean(), 1)},
+        {"name": kpis["niederschlag_mm"]["name"], "einheit": "mm",
+         "wert": round(d["niederschlag_mm"].sum(), 0)},
+        {"name": "Regentage", "einheit": "Tage",
+         "wert": int((d["niederschlag_mm"] > 0).sum())},
+    ]
+
+
 __all__ = ["EBENEN", "konfig", "store_mit_beispiel", "importiere", "kachel_werte",
-           "ebenen_namen", "naechste_knoten", "sicht", "verdichte"]
+           "ebenen_namen", "naechste_knoten", "sicht", "verdichte",
+           "wetter_taeglich", "wetter_kennzahlen"]

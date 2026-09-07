@@ -87,3 +87,19 @@ umsatzrendite_pct:
   gueltig_bis_ebene: 2
   richtung: groesser_ist_besser
   ampel: {gruen_ab: 5, gelb_ab: 0}
+
+# --- Kontext-Kennzahlen (Umwelt, nicht Teil der Geschaeftsverdichtung) ---
+# "kontext: true" haelt sie aus Ranking/Kuchen/Ergebnis heraus; sie erscheinen
+# im eigenen Wetter-Panel und lassen sich mit Umsatz je Tag in Beziehung setzen.
+
+temperatur_c:
+  name: Ø Temperatur
+  einheit: "°C"
+  aggregation: mean
+  kontext: true
+
+niederschlag_mm:
+  name: Niederschlag
+  einheit: mm
+  aggregation: sum
+  kontext: true

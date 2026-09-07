@@ -40,7 +40,7 @@ def verdichte(fakten: pd.DataFrame, kpis: dict, ebene: int, filter: dict | None 
 
     ergebnis: dict[str, pd.Series] = {}
     for kid, kdef in kpis.items():
-        if "berechnet" in kdef or ebene > int(kdef.get("gueltig_bis_ebene", 4)):
+        if "berechnet" in kdef or kdef.get("kontext") or ebene > int(kdef.get("gueltig_bis_ebene", 4)):
             continue
         teil = df[df["kennzahl_id"] == kid]
         if teil.empty:

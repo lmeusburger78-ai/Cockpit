@@ -7,7 +7,8 @@ bis auf die Einzeldaten aufschlüsseln.
 
 **Status:** Phase 2 – die Streamlit-Oberfläche mit Plotly-Diagrammen läuft:
 Rollen-Auswahl, KPI-Kacheln mit Ampeln, Drill-Down per Klick, GuV-Wasserfall,
-Treemap und Trendverlauf, alle vollständig beschriftet. Import, Datenmodell und
+Treemap, Kuchen-/Donutdiagramm, Trendverlauf und ein Wetter-Panel
+(Temperatur + Niederschlag), alle vollständig beschriftet. Import, Datenmodell und
 Verdichtung aus Phase 1 sind mit Tests hinterlegt.
 
 ## Dokumentation
@@ -29,9 +30,9 @@ python -m pytest                     # Tests: Verdichtung + App-Rendering je Rol
 
 ```
 config/            Kennzahlen (kpis.yaml), Rollen (rollen.yaml), Hierarchie, Mapping-Profile
-cockpit/           Python-Paket: model, ingest/excel, store (DuckDB), aggregate, charts, service, theme
+cockpit/           Python-Paket: model, ingest/excel, ingest/weather, store (DuckDB), aggregate, charts, service, theme
 app/               Streamlit-Oberfläche (app.py)
-examples/          Beispiel-Excel (fiktive Verkaufszahlen der Limonadenstände)
+examples/          Beispiel-Excel (Verkaufszahlen) + Beispiel-Wetter (wetter_wien.csv)
 scripts/           Demo-Skript
 tests/             pytest
 data/              Laufzeitdaten (DuckDB) – nicht in Git

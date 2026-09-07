@@ -161,6 +161,12 @@ if kacheln:
 else:
     st.info("Für diesen Knoten liegen keine Kennzahlen vor.")
 
+# Wetter-Kontext (stadtweit, in jeder Sicht gleich) als kompakte Zeile
+wetter_kz = service.wetter_kennzahlen(fakten, kpis)
+if wetter_kz:
+    teile = " · ".join(f"{w['name']} {theme.zahl(w['wert'], w['einheit'])}" for w in wetter_kz)
+    st.caption(f"🌤️ Wetter im Zeitraum (Stadtwetter): {teile}")
+
 st.write("")
 
 # ----------------------------------------------------------------- Diagramme
@@ -214,6 +220,17 @@ if {"umsatz_eur", "kosten_eur"} <= set(rolle["kennzahlen"]):
                                   "Umsatz minus Kostenarten ergibt das Ergebnis",
                                   f"{titel_ort} · Gesamtzeitraum"),
             use_container_width=True, config=PLOT)
+
+# ----------------------------------------------------------------- Wetter-Panel
+wetter = service.wetter_taeglich(fakten)
+if not wetter.empty:
+    st.markdown("### Wetter (Kontext)")
+    st.caption("Stadtweit, in jeder Sicht gleich – zum Abgleich mit Umsatz und Kundenzahl "
+               "(z. B. Regentage gegen Absatz).")
+    st.plotly_chart(
+        charts.wetter_panel(wetter, "Temperatur und Niederschlag je Tag",
+                            "Stadtwetter · Zeitraum der geladenen Daten"),
+        use_container_width=True, config=PLOT)
 
 # ----------------------------------------------------------------- Drill-Down-Knöpfe
 if kann_tiefer and not kinder.empty and kind_ebene in kinder.columns:

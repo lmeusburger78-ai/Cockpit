@@ -13,6 +13,7 @@ from __future__ import annotations
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from cockpit import theme
 from cockpit.aggregate import ampel as ampel_farbe
@@ -166,4 +167,34 @@ def kuchen(df: pd.DataFrame, label_spalte: str, wert: str, gesamt_label: str,
     lay["showlegend"] = False  # jedes Segment ist direkt beschriftet – Legende wäre doppelt
     lay["margin"] = dict(l=90, r=90, t=96, b=70)
     fig.update_layout(lay)
+    return fig
+
+def wetter_panel(taeglich: pd.DataFrame, titel: str, untertitel: str = "") -> go.Figure:
+    """Wetter im Zeitraum: Temperatur als Linie (oben) und Niederschlag als
+    Balken (unten) in zwei getrennten Achsen mit gemeinsamer Zeitachse – kein
+    Dual-Axis. Beide Achsen tragen Titel mit Einheit."""
+    d = taeglich.sort_values("datum")
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        row_heights=[0.55, 0.45])
+    fig.add_trace(go.Scatter(
+        x=d["datum"], y=d["temperatur_c"], mode="lines", name="Temperatur",
+        line=dict(color=theme.KATEGORIAL[1], width=2),
+        hovertemplate="%{x|%d.%m.%Y}<br>%{y:.1f} °C<extra></extra>"), row=1, col=1)
+    fig.add_trace(go.Bar(
+        x=d["datum"], y=d["niederschlag_mm"], name="Niederschlag",
+        marker=dict(color=theme.KATEGORIAL[0]),
+        hovertemplate="%{x|%d.%m.%Y}<br>%{y:.1f} mm<extra></extra>"), row=2, col=1)
+    lay = theme.layout(titel, untertitel, hoehe=440)
+    lay.pop("xaxis", None)
+    lay.pop("yaxis", None)
+    lay["showlegend"] = False
+    lay["margin"] = dict(l=70, r=30, t=86, b=55)
+    fig.update_layout(lay)
+    fig.update_yaxes(title_text="Temperatur (°C)", gridcolor=theme.GRID, linecolor=theme.AXIS,
+                     title_font=dict(color=theme.INK2, size=13), row=1, col=1)
+    fig.update_yaxes(title_text="Niederschlag (mm)", gridcolor=theme.GRID, linecolor=theme.AXIS,
+                     title_font=dict(color=theme.INK2, size=13), rangemode="tozero", row=2, col=1)
+    fig.update_xaxes(gridcolor=theme.GRID, linecolor=theme.AXIS, row=1, col=1)
+    fig.update_xaxes(title_text="Datum", gridcolor=theme.GRID, linecolor=theme.AXIS,
+                     title_font=dict(color=theme.INK2, size=13), row=2, col=1)
     return fig

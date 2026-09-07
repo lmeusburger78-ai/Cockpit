@@ -147,8 +147,19 @@ in derselben Tabelle, verknüpft über Standort und Datum.
 
 ## Was als Nächstes sinnvoll ist
 
-Wenn ihr eine externe Quelle ausprobieren wollt, ist **Wetter über Open-Meteo**
-der schnellste erste Schritt: kostenlos, kein Schlüssel, sofort abrufbar. Ein
-**Aktien-Feed** ist genauso schnell, sobald geklärt ist, welche Titel und ob
-eine API genutzt werden darf. Beides baue ich als eigenen Adapter neben den
-Excel-Import, ohne dass sich an eurer bestehenden Auswertung etwas ändert.
+**Wetter ist bereits eingebaut** (`cockpit/ingest/weather.py`): Temperatur und
+Niederschlag werden als Kontext-Kennzahlen ins Modell geladen und im Cockpit in
+einem eigenen Wetter-Panel gezeigt (Temperatur als Linie, Niederschlag als
+Balken) – in der Übersicht wie im Drill-Down. Der Live-Abruf läuft über
+Open-Meteo (kostenlos, ohne Schlüssel); für den Offlinebetrieb liegt eine
+Beispiel-Wetterdatei bei (`examples/wetter_wien.csv`). Wetter ist stadtweit und
+taucht deshalb nie als Standort in Ranking, Kuchen oder Ergebnis auf; es dient
+dem Abgleich mit Umsatz und Kundenzahl (z. B. Regentage gegen Absatz).
+
+Ein **Aktien-Feed** ist der nächste naheliegende Schritt – dieselbe Bauweise,
+sobald geklärt ist, welche Titel und ob eine API genutzt werden darf.
+
+> Hinweis: In der Cloud-Umgebung dieser Session ist der Open-Meteo-Host durch
+> die Egress-Policy gesperrt, deshalb kommen die Wetterzahlen hier aus der
+> beigelegten Beispieldatei. In eurer Umgebung, wo der Host erreichbar ist,
+> zieht `open_meteo_zu_fakten()` die echten Tageswerte.
