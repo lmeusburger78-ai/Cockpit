@@ -551,7 +551,10 @@ function baseLayout(title,sub,h){
     yaxis:{gridcolor:hair,linecolor:axis,zerolinecolor:axis},hoverlabel:{font:{family:"IBM Plex Sans",size:12.5}}};
 }
 const CFG={displayModeBar:false,responsive:true};
-function plReady(el){if(typeof Plotly==="undefined"){el.innerHTML='<div style="padding:34px 14px;color:var(--muted);font-size:13px;text-align:center">Diagramm wird geladen …</div>';return false;}return true;}
+function plReady(el){
+  if(typeof Plotly==="undefined"){el.innerHTML='<div class="plot-ph" style="padding:34px 14px;color:var(--muted);font-size:13px;text-align:center">Diagramm wird geladen …</div>';return false;}
+  if(el.querySelector(".plot-ph"))el.innerHTML="";  // alten Ladehinweis vor dem Zeichnen entfernen
+  return true;}
 
 // ---------- charts ----------
 function ranking(el,kinder,kid,kdef,kindEbene){
