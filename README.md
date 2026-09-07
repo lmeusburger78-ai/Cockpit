@@ -32,6 +32,7 @@ python -m pytest                     # Tests: Verdichtung + App-Rendering je Rol
 config/            Kennzahlen (kpis.yaml), Rollen (rollen.yaml), Hierarchie, Mapping-Profile
 cockpit/           Python-Paket: model, ingest/excel, ingest/weather, store (DuckDB), aggregate, charts, service, theme
 app/               Streamlit-Oberfläche (app.py)
+web/               statische HTML-Website (Generator + Template)
 examples/          Beispiel-Excel (Verkaufszahlen) + Beispiel-Wetter (wetter_wien.csv)
 scripts/           Demo-Skript
 tests/             pytest

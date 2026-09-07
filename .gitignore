@@ -11,3 +11,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+
+# generierte Website (aus web/template.html + Daten via scripts/export_web.py)
+web/cockpit.html
