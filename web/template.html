@@ -2,7 +2,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
 <style>
 :root{
   --ground:#f2f2ef; --surface:#ffffff; --surface-2:#fbfbf9;
@@ -72,13 +71,13 @@ h2.node{font-size:27px;margin:2px 0 3px;letter-spacing:-.02em;text-wrap:balance}
   padding:1px 7px;font-size:12px;margin-left:2px}
 
 /* KPI tiles */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:8px}
-.kpi{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
-.kpi .k-lbl{display:flex;align-items:center;gap:7px;color:var(--ink-2);font-size:12.5px;font-weight:500;margin-bottom:9px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:26px 44px;
+  margin:6px 0 4px;padding-bottom:24px;border-bottom:1px solid var(--hair)}
+.kpi .k-lbl{display:flex;align-items:center;gap:7px;color:var(--ink-2);font-size:12.5px;font-weight:500;margin-bottom:6px}
 .kpi .dot{width:9px;height:9px;border-radius:50%;flex:none}
-.kpi .k-val{font-size:29px;font-weight:600;letter-spacing:-.02em;line-height:1;color:var(--ink)}
+.kpi .k-val{font-size:32px;font-weight:600;letter-spacing:-.02em;line-height:1;color:var(--ink)}
 .kpi .k-val .u{font-size:14px;color:var(--muted);font-weight:500;margin-left:3px}
-.kpi .k-delta{font-size:12px;margin-top:8px;font-weight:500;font-family:"IBM Plex Mono",monospace}
+.kpi .k-delta{font-size:12px;margin-top:7px;font-weight:500;font-family:"IBM Plex Mono",monospace}
 .wthr{margin:16px 0 6px;padding:11px 15px;background:var(--surface-2);border:1px solid var(--hair);
   border-radius:10px;font-size:13px;color:var(--ink-2);display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .wthr b{color:var(--ink);font-weight:600}
@@ -147,10 +146,10 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
     <div class="src">
       <div class="lbl">Datenquellen</div>
       <div class="srcrow"><span class="ic">📄</span><div class="t"><b>limonadenstaende.xlsx</b><br><span>131.710 Fakten · Mai–Juli 2026</span></div></div>
-      <div class="srcrow"><span class="ic">🌤️</span><div class="t"><b>Wetter je Markt</b><br><span>Open-Meteo · Temperatur &amp; Niederschlag</span></div></div>
+      <div class="srcrow"><span class="ic">🌤️</span><div class="t"><b>Wetter (Ø aller Märkte)</b><br><span>Open-Meteo · Temperatur &amp; Niederschlag</span></div></div>
     </div>
     <button class="theme-tog" id="themebtn">◐ Hell / Dunkel</button>
-    <button class="help-btn" id="helpbtn">＋ Excel hochladen &amp; Hilfe</button>
+    <button class="help-btn" id="helpbtn">ℹ︎ Excel-Upload: so geht's</button>
   </aside>
 
   <main class="main">
@@ -158,7 +157,6 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
     <h2 class="node" id="nodetitle"></h2>
     <div class="subline" id="subline"></div>
     <div class="kpis" id="kpis"></div>
-    <div class="wthr" id="wthrline"></div>
 
     <div id="sec-split"></div>
     <div id="sec-result"></div>
@@ -181,8 +179,14 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
     <h3>Excel hochladen &amp; wie das Cockpit gefüttert wird</h3>
     <p class="lead">Wo die Zahlen herkommen, wie sie aktuell bleiben und was passiert, wenn sich etwas ändert.</p>
 
+    <div class="note" style="border-color:var(--gelb);background:var(--surface-2)">
+      <b>Diese Seite ist eine Vorschau mit Beispieldaten.</b> Sie zeigt, wie das Cockpit aussieht und sich bedient –
+      hier gibt es bewusst <b>kein Upload-Fenster</b>, weil eine reine Webseite keine Dateien verarbeiten kann.
+      Der echte Upload läuft in der <b>Cockpit-App</b> (Streamlit). Unten steht Schritt für Schritt, wie das dort aussieht.
+    </div>
+
     <h4>📤 Wo lade ich die Excel hoch?</h4>
-    <p>Der Upload sitzt <b>in dieser Anwendung</b>, in der linken Seitenleiste unter „＋ Excel hochladen“ — <b>nicht</b> in GitHub. GitHub enthält nur den Programmcode; die Daten leben im Cockpit. So läuft ein Upload:</p>
+    <p>In der <b>Cockpit-App</b>, in der linken Seitenleiste unter „＋ Excel hochladen“ — <b>nicht</b> in GitHub und nicht auf dieser Vorschau-Seite. GitHub enthält nur den Programmcode; die Daten leben in der App. So läuft ein Upload dort:</p>
     <ol class="steps">
       <li>Excel wie gewohnt in den Blättern „Bonierungen“ und „Ausgaben“ um die neuen Zeilen erweitern.</li>
       <li>In der Seitenleiste „＋ Excel hochladen“ öffnen, Datei wählen, „Importieren“.</li>
@@ -197,8 +201,9 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
     <p>Zwischen Excel und Cockpit steht ein <b>Mapping-Profil</b> (<code>config/mappings/…yaml</code>). Spalte umbenannt oder Blatt anders aufgebaut? Nur eine Zeile im Profil anpassen — <b>kein Programmcode</b>. Neue Standorte, Produkte oder Kostenarten fließen automatisch mit. Passt eine Datei nicht mehr, lehnt der Prüfbericht sie ab, statt still falsche Zahlen zu zeigen.</p>
 
     <h4>🌤️ Woher kommen die Wetterdaten?</h4>
-    <p><b>Open-Meteo</b> ist ein kostenloser Wetterdienst mit historischen Tageswerten (Temperatur, Niederschlag) für jede Koordinate. Jeder Markt hat in <code>config/standorte.yaml</code> seine eigene Koordinate — im Drill-Down erscheint das Wetter genau dieses Marktes. So lässt sich <b>Regen gegen Absatz</b> vergleichen.</p>
-    <div class="note">Hinweis: In dieser Vorschau sind die Wetterzahlen realistische Beispieldaten (der Live-Dienst war im Testsystem gesperrt). Im Echtbetrieb zieht das Cockpit die echten Werte automatisch.</div>
+    <p><b>Open-Meteo</b> ist ein kostenloser Wetterdienst mit historischen Tageswerten für jede Koordinate. Die Märkte haben in <code>config/standorte.yaml</code> je eine Koordinate; das Wetter-Panel unten zeigt den <b>Durchschnitt über alle Märkte</b> und dient dem Abgleich von <b>Regen gegen Absatz</b>.</p>
+    <p><b>Die Zahlen im Wetter-Panel:</b> „Ø Temperatur“ ist das Tagesmittel in Grad Celsius, „Niederschlag“ die <b>Regenmenge in Millimetern</b> (Summe über den Zeitraum), „Regentage“ die Anzahl der Tage mit Regen. 155&nbsp;mm heißt also 155&nbsp;Millimeter Regen im Zeitraum — es ist keine Höhenangabe.</p>
+    <div class="note">Hinweis: In dieser Vorschau sind die Wetterzahlen und die Standort-Koordinaten <b>Platzhalter/Beispiele</b> (der Live-Dienst war im Testsystem gesperrt). Im Echtbetrieb werden die echten Koordinaten eurer Märkte eingetragen und die echten Werte automatisch geladen.</div>
 
     <h4>🧭 Verdichtung &amp; Adressaten</h4>
     <p>Alle Uploads landen in <b>einem Kennzahlen-Modell</b>. Jede Rolle sieht nur ihre Kennzahlen und ihren Ausschnitt, verdichtet bis zur erlaubten Tiefe — von der Geschäftsführung (Unternehmen → Standort) bis zur Standleitung (eigener Markt → Produkt → Größe). Diese Vorschau zeigt echte Zahlen aus der Beispiel-Excel; im Live-Cockpit kommen Login und weitere Rollen dazu.</p>
@@ -242,9 +247,11 @@ function baseLayout(title,sub,h){
     yaxis:{gridcolor:hair,linecolor:axis,zerolinecolor:axis},hoverlabel:{font:{family:"IBM Plex Sans",size:12.5}}};
 }
 const CFG={displayModeBar:false,responsive:true};
+function plReady(el){if(typeof Plotly==="undefined"){el.innerHTML='<div style="padding:34px 14px;color:var(--muted);font-size:13px;text-align:center">Diagramm wird geladen …</div>';return false;}return true;}
 
 // ---------- charts ----------
 function ranking(el,kinder,kid,kdef,kindEbene){
+  if(!plReady(el))return;
   const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>a[kid]-b[kid]);
   const hasA="ampel" in kdef;
   const vals=rows.map(r=>r[kid]),lo=Math.min(...vals),hi=Math.max(...vals);
@@ -261,6 +268,7 @@ function ranking(el,kinder,kid,kdef,kindEbene){
   el.on("plotly_click",ev=>{const name=ev.points[0].y;if(node().kann_tiefer)drill(name);});
 }
 function pie(el,kinder,kid,kdef){
+  if(!plReady(el))return;
   const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>b[kid]-a[kid]);
   const labels=rows.map(r=>r[node().kind_ebene]),vals=rows.map(r=>r[kid]);
   const sum=vals.reduce((a,b)=>a+b,0);
@@ -277,6 +285,7 @@ function pie(el,kinder,kid,kdef){
   Plotly.newPlot(el,[tr],lay,CFG);
 }
 function waterfall(el,wf,titel){
+  if(!plReady(el))return;
   const arten=Object.keys(wf.kostenarten),kv=arten.map(a=>wf.kostenarten[a]);
   const names=["Umsatz",...arten,"Ergebnis"];
   const y=[wf.umsatz,...kv.map(v=>-v),wf.umsatz-kv.reduce((a,b)=>a+b,0)];
@@ -292,6 +301,7 @@ function waterfall(el,wf,titel){
   Plotly.newPlot(el,[tr],lay,CFG);
 }
 function trend(el,monat,kid,kdef){
+  if(!plReady(el))return;
   const groups=[...new Set(monat.map(r=>r.ebene_2||r.ebene_1))];
   const traces=groups.map((g,i)=>{const d=monat.filter(r=>(r.ebene_2||r.ebene_1)===g&&r[kid]!=null)
       .sort((a,b)=>a.periode<b.periode?-1:1);const c=SERIES[i%SERIES.length];
@@ -305,6 +315,7 @@ function trend(el,monat,kid,kdef){
   Plotly.newPlot(el,traces,lay,CFG);
 }
 function weather(el,w){
+  if(!plReady(el))return;
   const d=w.taeglich;if(!d||!d.length){el.innerHTML="";return;}
   const x=d.map(r=>r.datum);
   const t1={type:"scatter",mode:"lines",x,y:d.map(r=>r.temperatur_c),xaxis:"x",yaxis:"y",
@@ -312,7 +323,7 @@ function weather(el,w){
   const t2={type:"bar",x,y:d.map(r=>r.niederschlag_mm),xaxis:"x",yaxis:"y2",marker:{color:SERIES[0]},
     hovertemplate:"%{x|%d.%m.}<br>%{y:.1f} mm<extra></extra>",name:"Niederschlag"};
   const ink2=cssv("--ink-2"),hair=cssv("--hair"),axis=cssv("--axis"),ink=cssv("--ink");
-  const wo=w.std?`Markt ${w.std}${w.ort?" ("+w.ort+")":""}`:"alle Märkte gemittelt";
+  const wo="alle Märkte gemittelt";
   const lay={title:{text:`Temperatur und Niederschlag je Tag<br><span style="font-size:12px;color:${ink2}">${wo} · eigenes Standortwetter</span>`,
       font:{size:16,color:ink,family:"IBM Plex Sans"},x:0,xanchor:"left",y:.97,yanchor:"top"},
     font:{family:"IBM Plex Sans",color:ink2,size:12.5},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
@@ -356,7 +367,7 @@ function renderKPIs(){
 function renderWeatherLine(){
   const w=node().wetter,el=document.getElementById("wthrline");
   if(!w.kennzahlen.length){el.style.display="none";return;}el.style.display="flex";
-  const wo=w.std?`Markt <b>${w.std}${w.ort?" ("+w.ort+")":""}</b>`:"<b>alle Märkte gemittelt</b>";
+  const wo=w.std?`Markt <b>${w.std}</b>`:"<b>alle Märkte gemittelt</b>";
   el.innerHTML=`🌤️ Wetter im Zeitraum · ${wo} &nbsp;`+
     w.kennzahlen.map(k=>`<span>${k.name} <b>${fmt(k.wert,k.name==="Ø Temperatur"?"temperatur_c":k.name==="Niederschlag"?"niederschlag_mm":"x")}</b></span>`).join(" · ");
 }
@@ -389,11 +400,11 @@ function renderDrill(){
     <div class="chips">${chips}</div><div class="hint">Ein Klick auf einen Balken oben oder auf eine Kachel öffnet die nächste Ebene.</div>`;
 }
 function renderWeatherPanel(){
-  const n=node();const note=document.getElementById("wthrnote");
-  note.innerHTML=n.wetter.std
-    ?`Wetter am Markt <b>${n.wetter.std}${n.wetter.ort?" ("+n.wetter.ort+")":""}</b> — zum Abgleich mit dem Absatz dieses Standorts (z.&nbsp;B. Regentage gegen Umsatz).`
-    :`Über alle Märkte gemittelt. In einen Standort hineinklicken zeigt dessen <b>eigenes</b> Wetter.`;
-  weather(document.getElementById("weather"),n.wetter);
+  // immer über alle Märkte gemittelt (Wurzelknoten der Rolle), unabhängig vom Drill-Down
+  const w=DATA.nodes[state.role+"/_"].wetter;
+  const kz=w.kennzahlen.map(k=>`${k.name} <b>${fmt(k.wert,k.name==="Ø Temperatur"?"temperatur_c":k.name==="Niederschlag"?"niederschlag_mm":"x")}</b>`).join(" · ");
+  document.getElementById("wthrnote").innerHTML=`Über alle Märkte gemittelt · ${kz} · zum Abgleich mit Umsatz und Kundenzahl (z.&nbsp;B. Regentage gegen Absatz).`;
+  weather(document.getElementById("weather"),w);
 }
 function renderTable(){
   const n=node();if(!n.monat.length){document.getElementById("table").innerHTML="";return;}
@@ -405,7 +416,7 @@ function renderTable(){
   document.getElementById("table").innerHTML=`<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function render(){
-  renderCrumbs();renderHead();renderKPIs();renderWeatherLine();
+  renderCrumbs();renderHead();renderKPIs();
   renderSplit();renderResult();renderWeatherPanel();renderDrill();renderTable();
 }
 
@@ -422,6 +433,18 @@ document.getElementById("modal").onclick=e=>{if(e.target.id==="modal")e.target.c
 document.getElementById("themebtn").onclick=()=>{const r=document.documentElement;
   const cur=r.getAttribute("data-theme");const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
   r.setAttribute("data-theme",dark?"light":"dark");render();};
-initRoles();render();
+initRoles();render();  // Text sofort; Diagramme sobald Plotly geladen ist
 window.goto=goto;window.drill=drill;
+(function loadPlotly(){
+  var srcs=["https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"];
+  var i=0;
+  function next(){
+    if(typeof Plotly!=="undefined"){render();return;}
+    if(i>=srcs.length){return;}
+    var sc=document.createElement("script");sc.src=srcs[i++];
+    sc.onload=function(){render();};sc.onerror=next;document.head.appendChild(sc);
+  }
+  next();
+})();
 </script>

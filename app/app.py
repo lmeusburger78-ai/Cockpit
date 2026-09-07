@@ -23,10 +23,9 @@ st.set_page_config(page_title="Prozess-Cockpit", page_icon="📊", layout="wide"
 st.markdown(f"""
 <style>
 .block-container {{padding-top: 2rem; max-width: 1400px;}}
-.kpi {{background:{theme.SURFACE}; border:1px solid rgba(11,11,11,.10); border-radius:12px;
-       padding:16px 18px; height:100%;}}
-.kpi .label {{color:{theme.INK2}; font-size:13px; margin-bottom:6px;}}
-.kpi .value {{color:{theme.INK}; font-size:30px; font-weight:600; line-height:1.1;}}
+.kpi {{padding:0;}}
+.kpi .label {{color:{theme.INK2}; font-size:13px; margin-bottom:5px;}}
+.kpi .value {{color:{theme.INK}; font-size:32px; font-weight:600; line-height:1.05;}}
 .kpi .unit {{color:{theme.MUTED}; font-size:15px; font-weight:500;}}
 .kpi .delta {{font-size:13px; margin-top:6px;}}
 .kpi .dot {{font-size:15px; margin-right:6px;}}
@@ -161,16 +160,6 @@ if kacheln:
 else:
     st.info("Für diesen Knoten liegen keine Kennzahlen vor.")
 
-# Wetter-Kontext: je Markt im Drill-Down, sonst über alle Märkte gemittelt
-_std = _filter(rolle, pfad).get("ebene_2")
-_orte = service.standort_orte()
-_ort_label = f" ({_orte[_std]['ort']})" if _std in _orte else ""
-wetter_kz = service.wetter_kennzahlen(fakten, kpis, _std)
-if wetter_kz:
-    teile = " · ".join(f"{w['name']} {theme.zahl(w['wert'], w['einheit'])}" for w in wetter_kz)
-    _wo = f"Markt {_std}{_ort_label}" if _std else "alle Märkte gemittelt"
-    st.caption(f"🌤️ Wetter im Zeitraum ({_wo}): {teile}")
-
 st.write("")
 
 # ----------------------------------------------------------------- Diagramme
@@ -225,20 +214,17 @@ if {"umsatz_eur", "kosten_eur"} <= set(rolle["kennzahlen"]):
                                   f"{titel_ort} · Gesamtzeitraum"),
             use_container_width=True, config=PLOT)
 
-# ----------------------------------------------------------------- Wetter-Panel
-wetter = service.wetter_taeglich(fakten, _std)
+# ----------------------------------------------------------------- Wetter-Panel (gemittelt, nur unten)
+wetter = service.wetter_taeglich(fakten)   # über alle Märkte gemittelt
 if not wetter.empty:
     st.markdown("### Wetter (Kontext)")
-    if _std:
-        st.caption(f"Wetter am Markt **{_std}{_ort_label}** – zum Abgleich mit dem "
-                   "Absatz dieses Standorts (z. B. Regentage gegen Umsatz).")
-        panel_unter = f"Markt {_std}{_ort_label} · Zeitraum der geladenen Daten"
-    else:
-        st.caption("Über alle Märkte gemittelt. Für das Wetter eines einzelnen Marktes "
-                   "in einen Standort hineinklicken – dort erscheint dessen eigenes Wetter.")
-        panel_unter = "alle Märkte gemittelt · Zeitraum der geladenen Daten"
+    wkz = service.wetter_kennzahlen(fakten, kpis)
+    teile = " · ".join(f"{w['name']} {theme.zahl(w['wert'], w['einheit'])}" for w in wkz)
+    st.caption(f"Über alle Märkte gemittelt · {teile} – zum Abgleich mit Umsatz "
+               "und Kundenzahl (z. B. Regentage gegen Absatz).")
     st.plotly_chart(
-        charts.wetter_panel(wetter, "Temperatur und Niederschlag je Tag", panel_unter),
+        charts.wetter_panel(wetter, "Temperatur und Niederschlag je Tag",
+                            "alle Märkte gemittelt · Zeitraum der geladenen Daten"),
         use_container_width=True, config=PLOT)
 
 # ----------------------------------------------------------------- Drill-Down-Knöpfe
