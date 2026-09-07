@@ -190,8 +190,12 @@ if hat_kinder:
             charts.kuchen(kinder, kind_ebene, kuchen_kid, f"{kkdef['name']} gesamt",
                           f"{kkdef['name']}-Anteile je {kind_name}", "Segmentgröße = Anteil am Ganzen"),
             use_container_width=True, config=PLOT)
-else:
-    # Unterste erlaubte Ebene: Verlauf über die Monate
+_std = _filter(rolle, pfad).get("ebene_2")
+_tagesumsatz = service.taeglicher_umsatz(fakten, rolle, pfad) if _std else pd.DataFrame()
+_zeigt_tagesverlauf = _std is not None and not _tagesumsatz.empty
+
+if not hat_kinder and not _zeigt_tagesverlauf:
+    # Unterste erlaubte Ebene ohne Standortbezug: Verlauf über die Monate
     leit = next((k for k in rolle["kennzahlen"] if k in fakten["kennzahl_id"].values), "umsatz_eur")
     kdef = kpis.get(leit, {"name": leit})
     monat = service.sicht(fakten, kpis, {"_": rolle}, "_", pfad, nach_monat=True)
@@ -201,6 +205,21 @@ else:
             charts.trend(monat, leit, kdef, gruppe,
                          f"{kdef.get('name', leit)} über die Monate", f"{titel_ort} · unterste Ebene dieser Rolle"),
             use_container_width=True, config=PLOT)
+
+# Produktmengen (Becher je Produkt) – wo mehrere Produkte unter dem Knoten liegen
+_prod = service.produkt_mengen(fakten, rolle, pfad)
+if len(_prod) >= 2:
+    st.markdown("### Produkte")
+    c1, c2 = st.columns(2)
+    _kennzahl = c1.radio("Kennzahl", ["Menge", "Umsatz"], horizontal=True, key="prod_kz")
+    _groesse = c2.radio("Größe", ["Gesamt", "Klein 0,2 l", "Groß 0,4 l"], horizontal=True, key="prod_gr")
+    _km = "umsatz" if _kennzahl == "Umsatz" else "menge"
+    _gr = {"Gesamt": "gesamt", "Klein 0,2 l": "klein", "Groß 0,4 l": "gross"}[_groesse]
+    _szlbl = {"gesamt": "alle Größen", "klein": "klein 0,2 l", "gross": "groß 0,4 l"}[_gr]
+    st.plotly_chart(
+        charts.produkt_mengen(_prod, f"Produkte je {_kennzahl}",
+                              f"{_szlbl} · absteigend", _km, _gr),
+        use_container_width=True, config=PLOT)
 
 # GuV-Wasserfall über die volle Breite, wenn Umsatz und Kosten sichtbar sind
 if {"umsatz_eur", "kosten_eur"} <= set(rolle["kennzahlen"]):
@@ -214,18 +233,29 @@ if {"umsatz_eur", "kosten_eur"} <= set(rolle["kennzahlen"]):
                                   f"{titel_ort} · Gesamtzeitraum"),
             use_container_width=True, config=PLOT)
 
-# ----------------------------------------------------------------- Wetter-Panel (gemittelt, nur unten)
-wetter = service.wetter_taeglich(fakten)   # über alle Märkte gemittelt
-if not wetter.empty:
-    st.markdown("### Wetter (Kontext)")
-    wkz = service.wetter_kennzahlen(fakten, kpis)
-    teile = " · ".join(f"{w['name']} {theme.zahl(w['wert'], w['einheit'])}" for w in wkz)
-    st.caption(f"Über alle Märkte gemittelt · {teile} – zum Abgleich mit Umsatz "
-               "und Kundenzahl (z. B. Regentage gegen Absatz).")
+# ----------------------------------------------------------------- Wetter / Tagesverlauf
+if _zeigt_tagesverlauf:
+    # Im Markt-Drill-Down: Tagesumsatz gegen Wetter dieses Standorts
+    st.markdown("### Tagesverlauf: Absatz & Wetter (Standort)")
+    st.caption(f"Markt **{_std}** · Tagesumsatz gegen Temperatur und Niederschlag – so wird sichtbar, "
+               "wie Wetter und Wochentag auf den Absatz wirken.")
     st.plotly_chart(
-        charts.wetter_panel(wetter, "Temperatur und Niederschlag je Tag",
-                            "alle Märkte gemittelt · Zeitraum der geladenen Daten"),
+        charts.absatz_wetter(_tagesumsatz, service.wetter_taeglich(fakten, _std), _std,
+                             "Absatz & Wetter je Tag",
+                             f"Markt {_std} · Umsatz oben, Temperatur & Niederschlag unten · Wochentag im Tooltip"),
         use_container_width=True, config=PLOT)
+else:
+    wetter = service.wetter_taeglich(fakten)   # über alle Märkte gemittelt
+    if not wetter.empty:
+        st.markdown("### Wetter (Kontext)")
+        wkz = service.wetter_kennzahlen(fakten, kpis)
+        teile = " · ".join(f"{w['name']} {theme.zahl(w['wert'], w['einheit'])}" for w in wkz)
+        st.caption(f"Über alle Märkte gemittelt · {teile} – zum Abgleich mit Umsatz "
+                   "und Kundenzahl (z. B. Regentage gegen Absatz).")
+        st.plotly_chart(
+            charts.wetter_panel(wetter, "Temperatur und Niederschlag je Tag",
+                                "alle Märkte gemittelt · Zeitraum der geladenen Daten"),
+            use_container_width=True, config=PLOT)
 
 # ----------------------------------------------------------------- Drill-Down-Knöpfe
 if kann_tiefer and not kinder.empty and kind_ebene in kinder.columns:

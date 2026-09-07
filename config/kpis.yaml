@@ -98,6 +98,18 @@ temperatur_c:
   aggregation: mean
   kontext: true
 
+temperatur_min_c:
+  name: Tiefsttemperatur
+  einheit: "°C"
+  aggregation: mean
+  kontext: true
+
+temperatur_max_c:
+  name: Höchsttemperatur
+  einheit: "°C"
+  aggregation: mean
+  kontext: true
+
 niederschlag_mm:
   name: Niederschlag
   einheit: mm

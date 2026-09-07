@@ -101,7 +101,60 @@ def naechste_knoten(fakten: pd.DataFrame, kpis: dict, rolle: dict,
     return verdichte(fakten, kpis, kind_ebene, _filter(rolle, pfad), nach_monat=False)
 
 
-WETTER_KZ = ["temperatur_c", "niederschlag_mm"]
+WETTER_KZ = ["temperatur_c", "temperatur_min_c", "temperatur_max_c", "niederschlag_mm"]
+
+
+WOCHENTAG = {0: "Mo", 1: "Di", 2: "Mi", 3: "Do", 4: "Fr", 5: "Sa", 6: "So"}
+
+
+def _knoten_filter(rolle: dict, pfad: tuple[str, ...]) -> dict:
+    start = int(rolle["start_ebene"])
+    filt = dict(rolle.get("filter") or {})
+    for i, k in enumerate(pfad):
+        filt[f"ebene_{start + 1 + i}"] = k
+    return filt
+
+
+def produkt_mengen(fakten: pd.DataFrame, rolle: dict, pfad: tuple[str, ...]) -> pd.DataFrame:
+    """Verkaufte Menge (Becher) und Umsatz je Produkt unter dem aktuellen Knoten –
+    zusätzlich aufgeteilt nach Getränkegröße (klein/groß), damit die Oberfläche
+    zwischen Menge/Umsatz und klein/groß umschalten kann.
+    Produkte stehen in ebene_3 der Verkaufszeilen; Kostenzeilen fallen weg (kein 'becher')."""
+    spalten = ["produkt", "becher", "umsatz_eur", "becher_klein", "becher_gross",
+               "umsatz_klein", "umsatz_gross"]
+    d = fakten[fakten["kennzahl_id"].isin(["becher", "umsatz_eur"])].copy()
+    for sp, w in _knoten_filter(rolle, pfad).items():
+        if sp in d.columns and sp not in ("ebene_3", "ebene_4"):
+            d = d[d[sp] == w]
+    d = d[d["ebene_3"].notna()]
+    if d.empty:
+        return pd.DataFrame(columns=spalten)
+    d["groesse"] = d["ebene_4"].astype(str).str.contains("klein").map({True: "klein", False: "gross"})
+    pv = d.pivot_table(index="ebene_3", columns=["kennzahl_id", "groesse"], values="wert",
+                       aggfunc="sum", fill_value=0.0)
+    out = pd.DataFrame(index=pv.index)
+    for kid, kurz in (("becher", "becher"), ("umsatz_eur", "umsatz")):
+        for g in ("klein", "gross"):
+            col = (kid, g)
+            out[f"{kurz}_{g}"] = pv[col] if col in pv.columns else 0.0
+    out["becher"] = out["becher_klein"] + out["becher_gross"]
+    out["umsatz_eur"] = out["umsatz_klein"] + out["umsatz_gross"]
+    out = out.reset_index().rename(columns={"ebene_3": "produkt"})
+    return out[spalten].sort_values("becher", ascending=False)
+
+
+def taeglicher_umsatz(fakten: pd.DataFrame, rolle: dict, pfad: tuple[str, ...]) -> pd.DataFrame:
+    """Umsatz je Tag unter dem aktuellen Knoten, mit Wochentag – für den Tagesverlauf
+    (Absatz gegen Wetter, sichtbarer Wochentag)."""
+    d = fakten[fakten["kennzahl_id"] == "umsatz_eur"].copy()
+    for sp, w in _knoten_filter(rolle, pfad).items():
+        if sp in d.columns:
+            d = d[d[sp] == w]
+    if d.empty:
+        return pd.DataFrame(columns=["datum", "umsatz_eur", "wochentag"])
+    g = d.groupby("datum")["wert"].sum().reset_index().rename(columns={"wert": "umsatz_eur"})
+    g["wochentag"] = g["datum"].dt.dayofweek.map(WOCHENTAG)
+    return g.sort_values("datum")
 
 
 def standort_orte() -> dict:
@@ -147,4 +200,5 @@ def wetter_kennzahlen(fakten: pd.DataFrame, kpis: dict, standort: str | None = N
 
 __all__ = ["EBENEN", "konfig", "store_mit_beispiel", "importiere", "kachel_werte",
            "ebenen_namen", "naechste_knoten", "sicht", "verdichte",
-           "wetter_taeglich", "wetter_kennzahlen", "standort_orte"]
+           "wetter_taeglich", "wetter_kennzahlen", "standort_orte",
+           "produkt_mengen", "taeglicher_umsatz"]

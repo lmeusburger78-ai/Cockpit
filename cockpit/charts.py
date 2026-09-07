@@ -176,10 +176,19 @@ def wetter_panel(taeglich: pd.DataFrame, titel: str, untertitel: str = "") -> go
     d = taeglich.sort_values("datum")
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
                         row_heights=[0.55, 0.45])
+    warm = theme.KATEGORIAL[1]
+    if "temperatur_max_c" in d and "temperatur_min_c" in d:
+        # Tageshoch/-tief als schattiertes Band, Tagesmittel als Linie
+        fig.add_trace(go.Scatter(x=d["datum"], y=d["temperatur_max_c"], mode="lines", name="Höchst",
+            line=dict(color=warm, width=0), hovertemplate="%{x|%d.%m.}<br>Höchst %{y:.1f} °C<extra></extra>",
+            showlegend=False), row=1, col=1)
+        fig.add_trace(go.Scatter(x=d["datum"], y=d["temperatur_min_c"], mode="lines", name="Tief",
+            line=dict(color=warm, width=0), fill="tonexty", fillcolor="rgba(235,104,52,0.15)",
+            hovertemplate="%{x|%d.%m.}<br>Tief %{y:.1f} °C<extra></extra>", showlegend=False), row=1, col=1)
     fig.add_trace(go.Scatter(
-        x=d["datum"], y=d["temperatur_c"], mode="lines", name="Temperatur",
-        line=dict(color=theme.KATEGORIAL[1], width=2),
-        hovertemplate="%{x|%d.%m.%Y}<br>%{y:.1f} °C<extra></extra>"), row=1, col=1)
+        x=d["datum"], y=d["temperatur_c"], mode="lines", name="Tagesmittel",
+        line=dict(color=warm, width=2),
+        hovertemplate="%{x|%d.%m.%Y}<br>Ø %{y:.1f} °C<extra></extra>"), row=1, col=1)
     fig.add_trace(go.Bar(
         x=d["datum"], y=d["niederschlag_mm"], name="Niederschlag",
         marker=dict(color=theme.KATEGORIAL[0]),
@@ -197,4 +206,73 @@ def wetter_panel(taeglich: pd.DataFrame, titel: str, untertitel: str = "") -> go
     fig.update_xaxes(gridcolor=theme.GRID, linecolor=theme.AXIS, row=1, col=1)
     fig.update_xaxes(title_text="Datum", gridcolor=theme.GRID, linecolor=theme.AXIS,
                      title_font=dict(color=theme.INK2, size=13), row=2, col=1)
+    return fig
+
+def produkt_mengen(df, titel: str, untertitel: str = "", kennzahl: str = "menge",
+                   groesse: str = "gesamt") -> go.Figure:
+    """Produkte je Menge (Becher) oder Umsatz, wahlweise für Größe klein/groß/gesamt.
+    kennzahl: "menge"|"umsatz" · groesse: "klein"|"gross"|"gesamt". Die jeweils andere
+    Kennzahl steht im Tooltip."""
+    ist_umsatz = kennzahl == "umsatz"
+    basis = "umsatz" if ist_umsatz else "becher"
+    def spalte(b):
+        return {"klein": f"{b}_klein", "gross": f"{b}_gross"}.get(
+            groesse, "umsatz_eur" if b == "umsatz" else "becher")
+    wert = df[spalte(basis)]
+    gegen = df[spalte("becher" if ist_umsatz else "umsatz")]
+    d = df.assign(_v=wert, _g=gegen).sort_values("_v")
+    fig = go.Figure(go.Bar(
+        x=d["_v"], y=d["produkt"], orientation="h",
+        marker=dict(color=theme.KATEGORIAL[0] if ist_umsatz else theme.KATEGORIAL[2]),
+        text=[(theme.eur(v) if ist_umsatz else f"{v:,.0f} Stk".replace(",", ".")) for v in d["_v"]],
+        textposition="outside", textfont=dict(color=theme.INK2, size=12), cliponaxis=False,
+        customdata=[(f"{g:,.0f} Becher".replace(",", ".") if ist_umsatz else theme.eur(g)) for g in d["_g"]],
+        hovertemplate="%{y}<br>%{x:,.0f} " + ("€" if ist_umsatz else "Becher")
+                      + "<br>" + ("Menge" if ist_umsatz else "Umsatz") + ": %{customdata}<extra></extra>",
+    ))
+    lay = theme.layout(titel, untertitel, hoehe=max(260, 60 + 46 * len(d)))
+    lay["xaxis"]["title"] = "Umsatz (€)" if ist_umsatz else "Verkaufte Becher (Stk)"
+    lay["margin"]["l"] = 150
+    lay["showlegend"] = False
+    fig.update_layout(lay)
+    fig.update_xaxes(rangemode="tozero")
+    return fig
+
+
+def absatz_wetter(tu, wetter, markt: str, titel: str, untertitel: str = "") -> go.Figure:
+    """Tagesverlauf je Standort: Umsatz (oben), Temperaturband + Mittel (Mitte),
+    Niederschlag (unten) auf gemeinsamer Zeitachse. Wochentag im Umsatz-Tooltip."""
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+                        row_heights=[0.42, 0.32, 0.26])
+    fig.add_trace(go.Bar(x=tu["datum"], y=tu["umsatz_eur"], marker=dict(color=theme.KATEGORIAL[0]),
+        customdata=tu["wochentag"], name="Umsatz",
+        hovertemplate="%{x|%d.%m.%Y} (%{customdata})<br>Umsatz %{y:,.0f} €<extra></extra>"), row=1, col=1)
+    warm = theme.KATEGORIAL[1]
+    if "temperatur_max_c" in wetter and "temperatur_min_c" in wetter:
+        fig.add_trace(go.Scatter(x=wetter["datum"], y=wetter["temperatur_max_c"], mode="lines",
+            line=dict(color=warm, width=0), showlegend=False, hoverinfo="skip"), row=2, col=1)
+        fig.add_trace(go.Scatter(x=wetter["datum"], y=wetter["temperatur_min_c"], mode="lines",
+            line=dict(color=warm, width=0), fill="tonexty", fillcolor="rgba(235,104,52,0.15)",
+            showlegend=False, hoverinfo="skip"), row=2, col=1)
+    fig.add_trace(go.Scatter(x=wetter["datum"], y=wetter["temperatur_c"], mode="lines",
+        line=dict(color=warm, width=2), showlegend=False,
+        hovertemplate="%{x|%d.%m.}<br>Ø %{y:.1f} °C<extra></extra>"), row=2, col=1)
+    fig.add_trace(go.Bar(x=wetter["datum"], y=wetter["niederschlag_mm"], marker=dict(color=theme.KATEGORIAL[0]),
+        showlegend=False, hovertemplate="%{x|%d.%m.}<br>%{y:.1f} mm<extra></extra>"), row=3, col=1)
+    lay = theme.layout(titel, untertitel, hoehe=560)
+    lay.pop("xaxis", None)
+    lay.pop("yaxis", None)
+    lay["showlegend"] = False
+    lay["margin"] = dict(l=70, r=24, t=74, b=44)
+    fig.update_layout(lay)
+    fig.update_yaxes(title_text="Umsatz (€)", gridcolor=theme.GRID, linecolor=theme.AXIS,
+                     rangemode="tozero", title_font=dict(color=theme.INK2, size=12), row=1, col=1)
+    fig.update_yaxes(title_text="Temp. (°C)", gridcolor=theme.GRID, linecolor=theme.AXIS,
+                     title_font=dict(color=theme.INK2, size=12), row=2, col=1)
+    fig.update_yaxes(title_text="Regen (mm)", gridcolor=theme.GRID, linecolor=theme.AXIS,
+                     rangemode="tozero", title_font=dict(color=theme.INK2, size=12), row=3, col=1)
+    fig.update_xaxes(gridcolor=theme.GRID, linecolor=theme.AXIS, row=1, col=1)
+    fig.update_xaxes(gridcolor=theme.GRID, linecolor=theme.AXIS, row=2, col=1)
+    fig.update_xaxes(title_text="Datum", gridcolor=theme.GRID, linecolor=theme.AXIS,
+                     title_font=dict(color=theme.INK2, size=12), row=3, col=1)
     return fig

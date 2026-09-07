@@ -86,6 +86,8 @@ def build():
             wf = ({"umsatz": umsatz, "kostenarten": kostenarten(f, pfad, r)}
                   if hat_kosten and umsatz and ebene <= 2 else None)
             wt = service.wetter_taeglich(f, std)
+            prod = service.produkt_mengen(f, r, tuple(pfad))
+            tu = service.taeglicher_umsatz(f, r, tuple(pfad)) if std else None
             data["nodes"][f"{rk}/{nk(pfad)}"] = {
                 "rolle": rk, "pfad": pfad, "ebene": ebene, "kann_tiefer": ebene < maxe,
                 "titel": (pfad[-1] if pfad else "Gesamt"),
@@ -95,6 +97,7 @@ def build():
                             for k in kach],
                 "kinder": kinder, "kinder_names": names, "kind_ebene": f"ebene_{ebene + 1}",
                 "monat": monat, "waterfall": wf,
+                "produkte": clean(prod), "taeglich_umsatz": clean(tu),
                 "wetter": {"std": std, "ort": (orte.get(std, {}).get("ort") if std else None),
                            "kennzahlen": [{**w, "wert": float(w["wert"])}
                                           for w in service.wetter_kennzahlen(f, kpis, std)],

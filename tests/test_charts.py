@@ -67,5 +67,22 @@ def test_wetter_panel(daten):
     d = service.wetter_taeglich(alle)
     assert len(d) == 92 and {"temperatur_c", "niederschlag_mm"} <= set(d.columns)
     fig = charts.wetter_panel(d, "T", "U")
-    assert len(fig.data) == 2
-    assert fig.data[0].type == "scatter" and fig.data[1].type == "bar"
+    typen = [t.type for t in fig.data]
+    assert "scatter" in typen and "bar" in typen  # Temperatur(-band) + Niederschlag
+
+
+def test_produkt_mengen_und_absatz_wetter(daten):
+    kpis, rollen, fakten = daten
+    import pandas as pd
+
+    from cockpit.ingest.weather import csv_zu_fakten
+    wf = csv_zu_fakten(str(BEISPIEL.parent / "wetter.csv"))
+    alle = pd.concat([fakten, wf], ignore_index=True)
+    prod = service.produkt_mengen(alle, rollen["geschaeftsfuehrung"], ())
+    assert set(prod["produkt"]) >= {"Orangensaft", "Apfelsaft"} and (prod["becher"] > 0).all()
+    figp = charts.produkt_mengen(prod, "T", "U")
+    assert figp.data[0].type == "bar"
+    tu = service.taeglicher_umsatz(alle, rollen["geschaeftsfuehrung"], ("Bahnhof",))
+    wd = service.wetter_taeglich(alle, "Bahnhof")
+    figs = charts.absatz_wetter(tu, wd, "Bahnhof", "T", "U")
+    assert len(figs.data) >= 3  # Umsatz + Temperaturband/Mittel + Niederschlag

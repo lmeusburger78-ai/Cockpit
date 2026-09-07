@@ -23,7 +23,7 @@ def wetter():
 def test_schema_und_pruefung(wetter):
     assert list(wetter.columns) == FAKT_SPALTEN
     assert pruefe(wetter, lade_kpis()).ok
-    assert set(wetter["kennzahl_id"]) == {"temperatur_c", "niederschlag_mm"}
+    assert {"temperatur_c", "temperatur_min_c", "temperatur_max_c", "niederschlag_mm"} == set(wetter["kennzahl_id"])
     # Wetter haengt jetzt an den Maerkten (ebene_2 = Standort), nicht an "Wetter"
     assert set(wetter["ebene_2"]) == {"Hauptplatz", "Bahnhof", "Stadtpark", "Wochenmarkt"}
 

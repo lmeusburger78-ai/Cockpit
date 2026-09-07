@@ -96,6 +96,14 @@ h2.node{font-size:27px;margin:2px 0 3px;letter-spacing:-.02em;text-wrap:balance}
 .chip .cdot{width:10px;height:10px;border-radius:3px;flex:none}
 .chip .arr{color:var(--muted);font-size:12px}
 .hint{color:var(--muted);font-size:12px;margin-top:9px}
+.toggles{display:flex;gap:16px;flex-wrap:wrap;margin:4px 0 10px}
+.tgroup{display:inline-flex;border:1px solid var(--hair);border-radius:9px;overflow:hidden;background:var(--surface)}
+.tgroup button{border:none;background:none;color:var(--ink-2);font:inherit;font-size:12.5px;font-weight:500;
+  padding:6px 13px;cursor:pointer}
+.tgroup button.on{background:var(--accent);color:#fff}
+.tgroup button+button{border-left:1px solid var(--hair)}
+.tglabel{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;
+  align-self:center;margin-right:2px}
 
 /* table */
 table{border-collapse:collapse;width:100%;font-size:12.5px}
@@ -160,8 +168,9 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
 
     <div id="sec-split"></div>
     <div id="sec-result"></div>
+    <div id="sec-produkte"></div>
 
-    <div class="sec-h">Wetter (Kontext)</div>
+    <div class="sec-h" id="sec-weather-h">Wetter (Kontext)</div>
     <div id="wthrnote" class="hint" style="margin-top:-4px;margin-bottom:12px"></div>
     <div class="card"><div id="weather" class="plot"></div></div>
 
@@ -275,14 +284,15 @@ function pie(el,kinder,kid,kdef){
   const labels=rows.map(r=>r[node().kind_ebene]),vals=rows.map(r=>r[kid]);
   const sum=vals.reduce((a,b)=>a+b,0);
   const cols=labels.map((_,i)=>SERIES[i%SERIES.length]);
-  const lay=baseLayout(`${kdef.name}-Anteile je ${EBN[node().ebene+1]||"Knoten"}`,"Segmentgröße = Anteil am Ganzen",470);
-  lay.margin={l:70,r:70,t:64,b:54};lay.showlegend=false;
+  const lay=baseLayout(`${kdef.name}-Anteile je ${EBN[node().ebene+1]||"Knoten"}`,"Segmentgröße = Anteil am Ganzen",480);
+  lay.margin={l:20,r:20,t:66,b:24};lay.showlegend=false;
   lay.annotations=[{text:`<b>${fmtShort(sum,kid)}</b><br><span style="font-size:11px">${kdef.name} gesamt</span>`,
-    showarrow:false,font:{size:15,color:cssv("--ink"),family:"IBM Plex Sans"},x:.5,y:.5}];
+    showarrow:false,font:{size:15,color:cssv("--ink"),family:"IBM Plex Sans"},x:.5,y:.46,xanchor:"center",yanchor:"middle"}];
   const tr={type:"pie",hole:.52,sort:false,direction:"clockwise",labels,values:vals,
-    marker:{colors:cols,line:{color:cssv("--surface"),width:2}},automargin:true,
+    domain:{x:[0.24,0.76],y:[0.05,0.87]},automargin:false,
+    marker:{colors:cols,line:{color:cssv("--surface"),width:2}},
     text:labels.map((l,i)=>`${l}<br>${fmtShort(vals[i],kid)}`),texttemplate:"%{text}<br>%{percent}",
-    textposition:"outside",textfont:{color:cssv("--ink-2"),size:12},
+    textposition:"outside",textfont:{color:cssv("--ink-2"),size:11.5},
     hovertemplate:"%{label}<br>%{value:,.0f} €<br>Anteil: %{percent}<extra></extra>"};
   Plotly.newPlot(el,[tr],lay,CFG);
 }
@@ -320,12 +330,18 @@ function weather(el,w){
   if(!plReady(el))return;
   const d=w.taeglich;if(!d||!d.length){el.innerHTML="";return;}
   const x=d.map(r=>r.datum);
+  const band=(d[0].temperatur_max_c!=null && d[0].temperatur_min_c!=null);
+  const tmax={type:"scatter",mode:"lines",x,y:d.map(r=>r.temperatur_max_c),xaxis:"x",yaxis:"y",
+    line:{color:SERIES[1],width:0},hovertemplate:"%{x|%d.%m.}<br>Höchst %{y:.1f} °C<extra></extra>",showlegend:false};
+  const tmin={type:"scatter",mode:"lines",x,y:d.map(r=>r.temperatur_min_c),xaxis:"x",yaxis:"y",
+    line:{color:SERIES[1],width:0},fill:"tonexty",fillcolor:"rgba(235,104,52,0.15)",
+    hovertemplate:"%{x|%d.%m.}<br>Tief %{y:.1f} °C<extra></extra>",showlegend:false};
   const t1={type:"scatter",mode:"lines",x,y:d.map(r=>r.temperatur_c),xaxis:"x",yaxis:"y",
-    line:{color:SERIES[1],width:2},hovertemplate:"%{x|%d.%m.}<br>%{y:.1f} °C<extra></extra>",name:"Temperatur"};
+    line:{color:SERIES[1],width:2},hovertemplate:"%{x|%d.%m.}<br>Ø %{y:.1f} °C<extra></extra>",name:"Tagesmittel"};
   const t2={type:"bar",x,y:d.map(r=>r.niederschlag_mm),xaxis:"x",yaxis:"y2",marker:{color:SERIES[0]},
     hovertemplate:"%{x|%d.%m.}<br>%{y:.1f} mm<extra></extra>",name:"Niederschlag"};
   const ink2=cssv("--ink-2"),hair=cssv("--hair"),axis=cssv("--axis"),ink=cssv("--ink");
-  const wo="alle Märkte gemittelt";
+  const wo="alle Märkte gemittelt · Fläche = Tagestief–Tageshoch, Linie = Tagesmittel";
   const lay={title:{text:`Temperatur und Niederschlag je Tag<br><span style="font-size:12px;color:${ink2}">${wo} · eigenes Standortwetter</span>`,
       font:{size:16,color:ink,family:"IBM Plex Sans"},x:0,xanchor:"left",y:.97,yanchor:"top"},
     font:{family:"IBM Plex Sans",color:ink2,size:12.5},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
@@ -334,7 +350,73 @@ function weather(el,w){
     yaxis:{domain:[.56,1],gridcolor:hair,linecolor:axis,title:{text:"Temperatur (°C)",font:{size:12,color:ink2}}},
     yaxis2:{domain:[0,.42],gridcolor:hair,linecolor:axis,rangemode:"tozero",title:{text:"Niederschlag (mm)",font:{size:12,color:ink2}}},
     hoverlabel:{font:{family:"IBM Plex Sans",size:12.5}}};
-  Plotly.newPlot(el,[t1,t2],lay,CFG);
+  Plotly.newPlot(el, band?[tmax,tmin,t1,t2]:[t1,t2], lay, CFG);
+}
+
+let prodMetric="menge", prodSize="gesamt";
+function prodVal(r,metric,size){
+  const p=metric==="umsatz"?"umsatz":"becher";
+  if(size==="klein")return r[p+"_klein"]||0;
+  if(size==="gross")return r[p+"_gross"]||0;
+  return metric==="umsatz"?r.umsatz_eur:r.becher;
+}
+function produktMengen(el,prod){
+  if(!plReady(el))return;
+  const m=prodMetric, sz=prodSize, isU=(m==="umsatz");
+  const d=prod.slice().map(r=>({produkt:r.produkt,v:prodVal(r,m,sz),
+      vBecher:prodVal(r,"menge",sz),vUmsatz:prodVal(r,"umsatz",sz)}))
+    .filter(r=>r.v!=null).sort((a,b)=>a.v-b.v);
+  const einh=isU?"Umsatz (€)":"Verkaufte Becher (Stk)";
+  const szlbl=sz==="klein"?"klein 0,2 l":sz==="gross"?"groß 0,4 l":"alle Größen";
+  const lay=baseLayout("Produkte je "+(isU?"Umsatz":"verkaufter Menge"),
+     szlbl+" · absteigend · "+(isU?"Menge":"Umsatz")+" im Tooltip",Math.max(300,70+52*d.length));
+  lay.margin={l:150,r:80,t:70,b:48};lay.showlegend=false;
+  lay.xaxis.title={text:einh,font:{size:12,color:cssv("--ink-2")}};
+  lay.xaxis.rangemode="tozero";lay.yaxis.automargin=true;
+  const tr={type:"bar",orientation:"h",x:d.map(r=>r.v),y:d.map(r=>r.produkt),
+    marker:{color:isU?SERIES[0]:SERIES[2]},
+    text:d.map(r=>isU?fmtShort(r.v,"umsatz_eur"):Math.round(r.v).toLocaleString("de-DE")+" Stk"),
+    textposition:"outside",textfont:{color:cssv("--ink-2"),size:12},cliponaxis:false,
+    customdata:d.map(r=>isU?(Math.round(r.vBecher).toLocaleString("de-DE")+" Becher"):fmtShort(r.vUmsatz,"umsatz_eur")),
+    hovertemplate:"%{y}<br>%{x:,.0f} "+(isU?"€":"Becher")+"<br>"+(isU?"Menge":"Umsatz")+": %{customdata}<extra></extra>"};
+  Plotly.newPlot(el,[tr],lay,CFG);
+}
+function setProd(kind,val){
+  if(kind==="metric")prodMetric=val; else prodSize=val;
+  renderProdukte();
+}
+
+function salesWeather(el,tu,wd,markt){
+  if(!plReady(el))return;
+  const ink2=cssv("--ink-2"),hair=cssv("--hair"),axis=cssv("--axis"),ink=cssv("--ink");
+  const xu=tu.map(r=>r.datum), wtag=tu.map(r=>r.wochentag||"");
+  const umsatz={type:"bar",x:xu,y:tu.map(r=>r.umsatz_eur),xaxis:"x",yaxis:"y",marker:{color:SERIES[0]},
+    customdata:wtag,hovertemplate:"%{x|%d.%m.%Y} (%{customdata})<br>Umsatz %{y:,.0f} €<extra></extra>"};
+  const traces=[umsatz];
+  if(wd&&wd.length){
+    const x=wd.map(r=>r.datum), band=(wd[0].temperatur_max_c!=null&&wd[0].temperatur_min_c!=null);
+    if(band){
+      traces.push({type:"scatter",mode:"lines",x,y:wd.map(r=>r.temperatur_max_c),xaxis:"x",yaxis:"y2",
+        line:{color:SERIES[1],width:0},showlegend:false,hovertemplate:"%{x|%d.%m.}<br>Höchst %{y:.1f} °C<extra></extra>"});
+      traces.push({type:"scatter",mode:"lines",x,y:wd.map(r=>r.temperatur_min_c),xaxis:"x",yaxis:"y2",
+        line:{color:SERIES[1],width:0},fill:"tonexty",fillcolor:"rgba(235,104,52,0.15)",showlegend:false,
+        hovertemplate:"%{x|%d.%m.}<br>Tief %{y:.1f} °C<extra></extra>"});
+    }
+    traces.push({type:"scatter",mode:"lines",x,y:wd.map(r=>r.temperatur_c),xaxis:"x",yaxis:"y2",
+      line:{color:SERIES[1],width:2},showlegend:false,hovertemplate:"%{x|%d.%m.}<br>Ø %{y:.1f} °C<extra></extra>"});
+    traces.push({type:"bar",x,y:wd.map(r=>r.niederschlag_mm),xaxis:"x",yaxis:"y3",marker:{color:SERIES[0]},
+      showlegend:false,hovertemplate:"%{x|%d.%m.}<br>%{y:.1f} mm<extra></extra>"});
+  }
+  const lay={title:{text:`Absatz &amp; Wetter je Tag<br><span style="font-size:12px;color:${ink2}">Markt ${markt} · Umsatz oben, Temperatur (Fläche = Tief–Hoch) &amp; Niederschlag unten · Wochentag im Tooltip</span>`,
+      font:{size:16,color:ink,family:"IBM Plex Sans"},x:0,xanchor:"left",y:.975,yanchor:"top"},
+    font:{family:"IBM Plex Sans",color:ink2,size:12.5},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+    height:560,margin:{l:70,r:24,t:74,b:44},showlegend:false,bargap:0.15,
+    xaxis:{domain:[0,1],anchor:"y3",gridcolor:hair,linecolor:axis,title:{text:"Datum",font:{size:12,color:ink2}}},
+    yaxis:{domain:[.68,1],gridcolor:hair,linecolor:axis,rangemode:"tozero",title:{text:"Umsatz (€)",font:{size:12,color:ink2}}},
+    yaxis2:{domain:[.36,.60],gridcolor:hair,linecolor:axis,title:{text:"Temp. (°C)",font:{size:12,color:ink2}}},
+    yaxis3:{domain:[0,.26],gridcolor:hair,linecolor:axis,rangemode:"tozero",title:{text:"Regen (mm)",font:{size:12,color:ink2}}},
+    hoverlabel:{font:{family:"IBM Plex Sans",size:12.5}}};
+  Plotly.newPlot(el,traces,lay,CFG);
 }
 
 // ---------- render ----------
@@ -376,7 +458,10 @@ function renderWeatherLine(){
 function renderSplit(){
   const n=node(),el=document.getElementById("sec-split");
   const hat=n.kann_tiefer&&n.kinder.length&&n.kinder.some(r=>n.kind_ebene in r);
-  if(!hat){el.innerHTML=`<div class="sec-h">Verlauf</div><div class="card"><div id="trendplot" class="plot"></div></div>`;
+  if(!hat){
+    // im Markt-Drill-Down ersetzt der Tagesverlauf (unten) den Monatsverlauf
+    if(n.wetter.std&&n.taeglich_umsatz&&n.taeglich_umsatz.length){el.innerHTML="";return;}
+    el.innerHTML=`<div class="sec-h">Verlauf</div><div class="card"><div id="trendplot" class="plot"></div></div>`;
     const kid=n.kennzahlen[0]||"umsatz_eur";trend(document.getElementById("trendplot"),n.monat,kid,KPIS[kid]);return;}
   const leit=n.kennzahlen.find(k=>n.kinder.some(r=>r[k]!=null))||"umsatz_eur";
   const pieKid=n.kinder.some(r=>r.umsatz_eur!=null)?"umsatz_eur":leit;
@@ -393,6 +478,17 @@ function renderResult(){
     waterfall(document.getElementById("wfplot"),n.waterfall,`${n.titel} · Gesamtzeitraum`);
   }else el.innerHTML="";
 }
+function renderProdukte(){
+  const n=node(),el=document.getElementById("sec-produkte");
+  if(!n.produkte||n.produkte.length<2){el.innerHTML="";return;}
+  const btn=(kind,val,lbl)=>`<button class="${(kind==="metric"?prodMetric:prodSize)===val?"on":""}" onclick="setProd('${kind}','${val}')">${lbl}</button>`;
+  el.innerHTML='<div class="sec-h">Produkte</div>'
+    +'<div class="toggles">'
+    +'<span class="tglabel">Kennzahl</span><span class="tgroup">'+btn("metric","menge","Menge")+btn("metric","umsatz","Umsatz")+'</span>'
+    +'<span class="tglabel">Größe</span><span class="tgroup">'+btn("size","gesamt","Gesamt")+btn("size","klein","Klein 0,2 l")+btn("size","gross","Groß 0,4 l")+'</span>'
+    +'</div><div class="card"><div id="prodplot" class="plot"></div></div>';
+  produktMengen(document.getElementById("prodplot"),n.produkte);
+}
 function renderDrill(){
   const n=node(),el=document.getElementById("sec-drill");
   if(!(n.kann_tiefer&&n.kinder_names.length)){el.innerHTML="";return;}
@@ -402,11 +498,19 @@ function renderDrill(){
     <div class="chips">${chips}</div><div class="hint">Ein Klick auf einen Balken oben oder auf eine Kachel öffnet die nächste Ebene.</div>`;
 }
 function renderWeatherPanel(){
-  // immer über alle Märkte gemittelt (Wurzelknoten der Rolle), unabhängig vom Drill-Down
-  const w=DATA.nodes[state.role+"/_"].wetter;
-  const kz=w.kennzahlen.map(k=>`${k.name} <b>${fmt(k.wert,k.name==="Ø Temperatur"?"temperatur_c":k.name==="Niederschlag"?"niederschlag_mm":"x")}</b>`).join(" · ");
-  document.getElementById("wthrnote").innerHTML=`Über alle Märkte gemittelt · ${kz} · zum Abgleich mit Umsatz und Kundenzahl (z.&nbsp;B. Regentage gegen Absatz).`;
-  weather(document.getElementById("weather"),w);
+  const n=node();const sec=document.getElementById("sec-weather-h");
+  if(n.wetter.std && n.taeglich_umsatz && n.taeglich_umsatz.length){
+    // im Markt-Drill-Down: Tagesumsatz + Wetter dieses Standorts zusammen
+    if(sec)sec.textContent="Tagesverlauf: Absatz & Wetter (Standort)";
+    document.getElementById("wthrnote").innerHTML=`Markt <b>${n.wetter.std}</b> · Tagesumsatz gegen Temperatur und Niederschlag – so wird sichtbar, wie Wetter und Wochentag auf den Absatz wirken.`;
+    salesWeather(document.getElementById("weather"),n.taeglich_umsatz,n.wetter.taeglich,n.wetter.std);
+  }else{
+    if(sec)sec.textContent="Wetter (Kontext)";
+    const w=DATA.nodes[state.role+"/_"].wetter;
+    const kz=w.kennzahlen.map(k=>`${k.name} <b>${fmt(k.wert,k.name==="Ø Temperatur"?"temperatur_c":k.name==="Niederschlag"?"niederschlag_mm":"x")}</b>`).join(" · ");
+    document.getElementById("wthrnote").innerHTML=`Über alle Märkte gemittelt · ${kz} · zum Abgleich mit Umsatz und Kundenzahl (z.&nbsp;B. Regentage gegen Absatz).`;
+    weather(document.getElementById("weather"),w);
+  }
 }
 function renderTable(){
   const n=node();if(!n.monat.length){document.getElementById("table").innerHTML="";return;}
@@ -419,7 +523,7 @@ function renderTable(){
 }
 function render(){
   renderCrumbs();renderHead();renderKPIs();
-  renderSplit();renderResult();renderWeatherPanel();renderDrill();renderTable();
+  renderSplit();renderResult();renderProdukte();renderWeatherPanel();renderDrill();renderTable();
 }
 
 // ---------- init ----------
@@ -436,7 +540,7 @@ document.getElementById("themebtn").onclick=()=>{const r=document.documentElemen
   const cur=r.getAttribute("data-theme");const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
   r.setAttribute("data-theme",dark?"light":"dark");render();};
 initRoles();render();  // Text sofort; Diagramme sobald Plotly geladen ist
-window.goto=goto;window.drill=drill;
+window.goto=goto;window.drill=drill;window.setProd=setProd;
 (function loadPlotly(){
   var srcs=["https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js",
             "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"];
