@@ -45,6 +45,7 @@ body{margin:0;background:var(--ground);color:var(--ink);
 select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9px;background:var(--surface-2);
   color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer}
 .roledesc{color:var(--ink-2);font-size:12.5px;margin-top:7px}
+.standsel{border:2px solid var(--accent);background:var(--accent-soft);color:var(--ink);font-weight:600;font-size:14px}
 .src{border-top:1px solid var(--hair);padding-top:16px}
 .srcrow{display:flex;gap:9px;align-items:flex-start;margin-bottom:11px}
 .srcrow .ic{flex:none;margin-top:1px}
@@ -73,6 +74,10 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
 .cmpchk label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hair);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
 .cmpchk label .sw{width:11px;height:11px;border-radius:3px}
 .cmpchk input{accent-color:var(--accent)}
+.cmprow select{border:1px solid var(--hair);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;padding:6px 9px;min-width:180px;cursor:pointer}
+.xbtn{border:1px solid var(--hair);background:var(--surface);color:var(--muted);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:13px}
+.xbtn:disabled{opacity:.35;cursor:not-allowed}
+.addbtn{border:1px dashed var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:8px;padding:6px 12px;font:inherit;font-weight:600;font-size:12.5px;cursor:pointer}
 
 /* Main */
 .main{padding:26px 30px 60px;max-width:1240px}
@@ -185,6 +190,11 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
       <div class="lbl">Adressat / Rolle</div>
       <select id="role"></select>
       <div class="roledesc" id="roledesc"></div>
+      <div id="standbox" hidden>
+        <div class="lbl" style="margin-top:14px">📍 Aktueller Stand</div>
+        <select id="standsel" class="standsel"></select>
+        <div class="roledesc">Wähle hier, welchen Stand du sehen möchtest.</div>
+      </div>
     </div>
     <div class="src">
       <div class="lbl">Datenquellen</div>
@@ -343,7 +353,7 @@ const GLOSS={umsatz_eur:"Summe aller Verkäufe (Brutto-Umsatz) im Zeitraum.",
   becher:"Verkaufte Menge in Bechern.",transaktionen:"Anzahl der Bons (Verkäufe).",
   bonwert_eur:"Durchschnittlicher Umsatz je Bon (Umsatz ÷ Transaktionen).",
   kosten_eur:"Summe aller Kosten im Zeitraum."};
-let state={role:null,pfad:[],from:null,to:null,splitMetric:"umsatz_eur",splitView:"kuchen"};
+let state={role:null,pfad:[],from:null,to:null,splitMetric:"umsatz_eur",splitView:"kuchen",standWahl:null};
 const KPIS=F.kpis,ROLLES=F.rollen,EBN=F.ebenen,ORTE=F.orte,EBENE1=F.ebene1;
 state.from=F.dmin; state.to=F.dmax;
 const AMPEL={wartezeit_min:{dir:"kl",g:5.5,y:6.5},zufriedenheit:{dir:"gr",g:3.8,y:3.4},
@@ -379,7 +389,12 @@ function metrics(rows,ebene,filt){
     bonwert_eur:tx?um/tx:null};
   if(ebene<=2){m.ergebnis_eur=um-kos;m.umsatzrendite_pct=um?(um-kos)/um*100:null;}
   return m;}
+// Einzel-Stand-Rollen (z. B. Standleitung): fester Standort, aber umschaltbar
+function alleStandorte(){const s=new Set();F.sales.forEach(r=>s.add(r.s));return [...s].sort();}
+function istEinzelStand(role){return role.start_ebene===2 && role.filter && role.filter.ebene_2;}
+function aktStand(){const role=ROLLES[state.role];return istEinzelStand(role)?(state.standWahl||role.filter.ebene_2):null;}
 function filterOf(role,pfad){const start=role.start_ebene;const filt=Object.assign({},role.filter||{});
+  const st=aktStand();if(st&&role===ROLLES[state.role])filt.ebene_2=st;  // gewählten Stand einsetzen
   pfad.forEach((k,i)=>filt["ebene_"+(start+1+i)]=k);return filt;}
 function childField(ebene){return {1:"s",2:"p",3:"g"}[ebene];}   // Verkauf: E->Kindfeld
 function childCostField(ebene){return {1:"ks",2:"ka"}[ebene];}
@@ -456,7 +471,7 @@ function computeNode(){
     waterfall={umsatz:m.umsatz_eur,kostenarten:ka};
   }
   return {rolle:state.role,pfad:state.pfad,ebene,kann_tiefer:ebene<maxe,
-    titel:(state.pfad.length?state.pfad[state.pfad.length-1]:"Gesamt"),
+    titel:(state.pfad.length?state.pfad[state.pfad.length-1]:(istEinzelStand(role)?aktStand():"Gesamt")),
     kennzahlen:role.kennzahlen.filter(k=>KPIS[k]),kacheln,kinder,kinder_names,vergleich_label:vlabel,
     kind_ebene:"ebene_"+(ebene+1),monat,waterfall,produkte,taeglich_umsatz,
     wetter:{std,ort:std&&ORTE[std]?ORTE[std].ort:null,kennzahlen:wkz,taeglich:wt}};
@@ -713,14 +728,73 @@ function compareValue(nm,metric,from,to){
 }
 function initCmp(){
   if(state.cmp)return;
-  // Sinnvolle Voreinstellung: erster Monat gegen letzten Monat
   const ms=monthsIn(F.dmin,F.dmax);const first=ms[0],last=ms[ms.length-1];
-  const aF=first+"-01",aT=monEnd(first),bF=last+"-01",bT=monEnd(last);
-  const role=ROLLES[state.role];
-  state.cmp={metric:role.kennzahlen.find(k=>KPIS[k])||"umsatz_eur",aF,aT,bF,bT,dim:"kinder",sel:new Set(allChildNames())};
+  state.cmp={metric:"umsatz_eur",
+    perioden:[{f:first+"-01",t:monEnd(first)},{f:last+"-01",t:monEnd(last)}],
+    std:"alle",prod:"alle",ka:"alle",serie:"standort"};
 }
-function setCmpDim(d){state.cmp.dim=d;
-  state.cmp.sel=new Set(d==="standort"?standortNamen():allChildNames());renderCompare();}
+// --- Vergleichs-Baukasten: Getränke, Kostenarten, Standorte ---
+function allProductNames(){const s=new Set();F.sales.forEach(r=>s.add(r.p));return [...s].sort();}
+function productFarben(){const t={};F.sales.forEach(r=>{t[r.p]=(t[r.p]||0)+r.um;});
+  return farbMap(Object.keys(t).map(p=>({ebene_2:p,umsatz_eur:t[p]})),"umsatz_eur","ebene_2");}
+function allKostenarten(){const s=new Set();F.costs.forEach(c=>s.add(c.ka));return [...s].sort();}
+function kostenartFarben(){const t={};F.costs.forEach(c=>{t[c.ka]=(t[c.ka]||0)+c.be;});
+  return farbMap(Object.keys(t).map(k=>({ebene_2:k,umsatz_eur:t[k]})),"umsatz_eur","ebene_2");}
+function fracFor(mon,pf,pt){const y=+mon.slice(0,4),m=+mon.slice(5,7);
+  const m0=mon+"-01",m1=mon+"-"+String(daysInMonth(y,m)).padStart(2,"0");
+  const lo=pf>m0?pf:m0,hi=pt<m1?pt:m1;if(hi<lo)return 0;
+  return ((new Date(hi)-new Date(lo))/86400000+1)/daysInMonth(y,m);}
+// itemKind: "getraenk" filtert Produkte, "kostenart" filtert Kostenarten, sonst kein Item-Filter
+function cmpPivot(p,stdSet,itemSet,itemKind,metric){
+  const prodF=itemKind==="getraenk"?itemSet:null;
+  const rows=F.sales.filter(r=>r.d>=p.f&&r.d<=p.t&&stdSet.has(r.s)&&(!prodF||prodF.has(r.p)));
+  let um=0,be=0,tx=0,wz=0,zf=0;rows.forEach(r=>{um+=r.um;be+=r.be;tx+=r.tx;wz+=r.wz;zf+=r.zf;});
+  if(metric==="umsatz_eur")return rows.length?um:null;
+  if(metric==="becher")return rows.length?be:null;
+  if(metric==="transaktionen")return rows.length?tx:null;
+  if(metric==="wartezeit_min")return tx?wz/tx:null;
+  if(metric==="zufriedenheit")return tx?zf/tx:null;
+  if(metric==="kosten_eur"||metric==="ergebnis_eur"){
+    const kaF=itemKind==="kostenart"?itemSet:null;let kos=0,hit=false;
+    F.costs.forEach(c=>{if(!stdSet.has(c.ks))return;if(kaF&&!kaF.has(c.ka))return;
+      const fr=fracFor(c.mon,p.f,p.t);if(fr>0){kos+=c.be*fr;hit=true;}});
+    if(metric==="kosten_eur")return hit?kos:null;
+    return (rows.length||hit)?um-kos:null;
+  }
+  return null;
+}
+function cmpAllStd(){return new Set(standortNamen());}
+function cmpVal(p,member){
+  const c=state.cmp,metric=c.metric,kost=(metric==="kosten_eur");
+  if(c.serie==="standort"){const std=new Set([member]);
+    if(kost)return cmpPivot(p,std,c.ka==="alle"?null:new Set([c.ka]),"kostenart",metric);
+    return cmpPivot(p,std,c.prod==="alle"?null:new Set([c.prod]),"getraenk",metric);}
+  const std=c.std==="alle"?cmpAllStd():new Set([c.std]);
+  if(c.serie==="getraenk")return cmpPivot(p,std,new Set([member]),"getraenk",metric);
+  return cmpPivot(p,std,new Set([member]),"kostenart",metric);
+}
+function cmpSeries(){const c=state.cmp;
+  if(c.serie==="getraenk")return {members:c.prod==="alle"?allProductNames():[c.prod],farb:productFarben(),label:"Getränk"};
+  if(c.serie==="kostenart")return {members:c.ka==="alle"?allKostenarten():[c.ka],farb:kostenartFarben(),label:"Kostenart"};
+  return {members:c.std==="alle"?standortNamen():[c.std],farb:standortFarben(),label:"Standort"};
+}
+function perLabel(p){const mo=p.f.slice(0,7);
+  if(p.f.slice(8)==="01"&&p.t===monEnd(mo))return MON_DE[mo.slice(5,7)]+" "+mo.slice(2,4);
+  return fmtDE(p.f)+"–"+fmtDE(p.t);}
+function cmpMetrics(){return [["umsatz_eur","Umsatz"],["becher","Menge"],["transaktionen","Bons"],
+  ["kosten_eur","Ausgaben"],["ergebnis_eur","Gewinn"],["wartezeit_min","Ø Wartezeit"],["zufriedenheit","Ø Zufriedenheit"]];}
+function cmpBreakdowns(metric){
+  if(metric==="kosten_eur")return [["standort","Standort"],["kostenart","Kostenart"]];
+  if(metric==="ergebnis_eur")return [["standort","Standort"]];
+  return [["standort","Standort"],["getraenk","Getränk"]];
+}
+function setCmp(k,v){state.cmp[k]=v;
+  if(k==="metric"){const bs=cmpBreakdowns(v).map(b=>b[0]);if(!bs.includes(state.cmp.serie))state.cmp.serie=bs[0];}
+  renderCompare();}
+function setPeriod(i,k,v){state.cmp.perioden[i][k]=v;renderCompare();}
+function addPeriodMonth(mo){if(mo&&state.cmp.perioden.length<8)state.cmp.perioden.push({f:mo+"-01",t:monEnd(mo)});renderCompare();}
+function addPeriodFull(){if(state.cmp.perioden.length<8)state.cmp.perioden.push({f:F.dmin,t:F.dmax});renderCompare();}
+function removePeriod(i){if(state.cmp.perioden.length>1)state.cmp.perioden.splice(i,1);renderCompare();}
 function weatherFor(names,from,to){
   const markets=names.filter(n=>F.weather.some(w=>w.s===n));
   const use=markets.length?markets:[...new Set(F.weather.map(w=>w.s))];
@@ -730,49 +804,45 @@ function weatherFor(names,from,to){
   if(!tN)return null;
   return {temp:tSum/tN,prec:precTot/(mN||1),reg:Math.round(regTot/(mN||1))};
 }
-function setCmp(k,v){state.cmp[k]=v;renderCompare();}
-function toggleSel(nm,on){if(on)state.cmp.sel.add(nm);else state.cmp.sel.delete(nm);renderCompare();}
 function renderCompare(){
   initCmp();const c=state.cmp,role=ROLLES[state.role],el=document.getElementById("compare");
-  const kENose=state.pfad.length?state.pfad[state.pfad.length-1]:"Gesamt";
-  const curEb=role.start_ebene+state.pfad.length;
-  const kindName=EBN[curEb+1]||"Knoten";
-  // Dimension: Kinder des Knotens ODER Standorte (nur wenn Rolle >1 Standort sieht und man tiefer als Gesamt ist)
-  const stdNames=standortNamen(),canStd=stdNames.length>1,showDim=canStd&&curEb>1;
-  const dim=(c.dim==="standort"&&showDim)?"standort":"kinder";c.dim=dim;
-  const dimName=dim==="standort"?"Standort":kindName;
-  const names=dim==="standort"?stdNames:allChildNames();
-  if(![...c.sel].some(n=>names.includes(n)))c.sel=new Set(names);  // Auswahl an Dimension/Knoten anpassen
-  // Vergleichs-Kennzahlen: Rollen-Kennzahlen + immer Umsatz/Ausgaben/Gewinn
-  const cmpM=role.kennzahlen.filter(k=>KPIS[k]);
-  ["umsatz_eur","kosten_eur","ergebnis_eur"].forEach(k=>{if(KPIS[k]&&!cmpM.includes(k)){
-    const iu=cmpM.indexOf("umsatz_eur");if(k==="kosten_eur"&&iu>=0)cmpM.splice(iu+1,0,k);else cmpM.push(k);}});
-  const metricOpts=cmpM.map(k=>`<option value="${k}" ${k===c.metric?"selected":""}>${kzLabel(k)}</option>`).join("");
-  const presets=(who)=>{let h='<button data-k="all" onclick="cmpPreset(\''+who+'\',\'all\')">Gesamt</button>';
-    monthsIn(F.dmin,F.dmax).forEach(mo=>{h+=`<button onclick="cmpPreset('${who}','${mo}')">${MON_DE[mo.slice(5,7)]}</button>`;});return h;};
-  const cfarb=dim==="standort"?standortFarben():knotenFarben();  // Farben je Dimension, konsistent zum Ranking/Kuchen
-  const chk=names.map((nm,i)=>`<label><input type="checkbox" ${c.sel.has(nm)?"checked":""} onchange="toggleSel('${String(nm).replace(/'/g,"\\'")}',this.checked)"><span class="sw" style="background:${cfarb[nm]||SERIES[i%SERIES.length]}"></span>${nm}</label>`).join("");
-  const dimToggle=showDim?`<div class="cmprow"><label class="f">Vergleich nach</label>
-      <span class="tgroup"><button class="${dim==="kinder"?"on":""}" onclick="setCmpDim('kinder')">${kindName}</button>
-      <button class="${dim==="standort"?"on":""}" onclick="setCmpDim('standort')">Standort</button></span></div>`:"";
+  const kENose=state.pfad.length?state.pfad[state.pfad.length-1]:(istEinzelStand(role)?aktStand():"Gesamt");
+  const metric=c.metric,istKost=metric==="kosten_eur",istGewinn=metric==="ergebnis_eur";
+  const metricOpts=cmpMetrics().map(([k,l])=>`<option value="${k}" ${k===metric?"selected":""}>${l}</option>`).join("");
+  const brOpts=cmpBreakdowns(metric).map(([k,l])=>`<option value="${k}" ${k===c.serie?"selected":""}>${l}</option>`).join("");
+  const stdOpts=`<option value="alle" ${c.std==="alle"?"selected":""}>Alle Standorte</option>`+
+    standortNamen().map(s=>`<option value="${s}" ${s===c.std?"selected":""}>${s}</option>`).join("");
+  // Positions-Filter (Getränk oder Kostenart) – nur wenn es nicht selbst die Aufschlüsselung ist
+  let itemRow="";
+  if(istKost&&c.serie!=="kostenart"){
+    const opt=`<option value="alle" ${c.ka==="alle"?"selected":""}>Alle Kostenarten</option>`+
+      allKostenarten().map(k=>`<option value="${k}" ${k===c.ka?"selected":""}>${k}</option>`).join("");
+    itemRow=`<div class="cmprow"><label class="f">Kostenart</label><select onchange="setCmp('ka',this.value)">${opt}</select></div>`;
+  }else if(!istKost&&!istGewinn&&c.serie!=="getraenk"){
+    const opt=`<option value="alle" ${c.prod==="alle"?"selected":""}>Alle Sorten</option>`+
+      allProductNames().map(p=>`<option value="${p}" ${p===c.prod?"selected":""}>${p}</option>`).join("");
+    itemRow=`<div class="cmprow"><label class="f">Getränk</label><select onchange="setCmp('prod',this.value)">${opt}</select></div>`;
+  }
+  const stdLabel=c.serie==="standort"?"Standorte":"Standort (Filter)";
+  const stdRow=`<div class="cmprow"><label class="f">${stdLabel}</label><select onchange="setCmp('std',this.value)">${stdOpts}</select></div>`;
+  const monBtns=monthsIn(F.dmin,F.dmax).map(mo=>`<button onclick="addPeriodMonth('${mo}')">+ ${MON_DE[mo.slice(5,7)]}</button>`).join("");
+  const perRows=c.perioden.map((p,i)=>`<div class="cmprow"><label class="f">Zeitraum ${i+1}</label>
+      <input type="date" min="${F.dmin}" max="${F.dmax}" value="${p.f}" onchange="setPeriod(${i},'f',this.value)">
+      <span class="dash">–</span>
+      <input type="date" min="${F.dmin}" max="${F.dmax}" value="${p.t}" onchange="setPeriod(${i},'t',this.value)">
+      <button class="xbtn" onclick="removePeriod(${i})" ${c.perioden.length<=1?"disabled":""} title="Zeitraum entfernen">✕</button></div>`).join("");
   el.innerHTML=`
     <h2 class="node" style="margin-top:0">Vergleich · ${kENose}</h2>
-    <div class="subline">Zwei Zeiträume gegenüberstellen und ${dimName} manuell auswählen.</div>
+    <div class="subline">Baukasten: Kennzahl, Zeiträume, Standorte und ${istKost?"Kostenarten":"Getränke"} frei kombinieren.</div>
     <div class="cmpbox">
-      ${dimToggle}
-      <div class="cmprow"><label class="f">Kennzahl</label>
-        <select onchange="setCmp('metric',this.value)">${metricOpts}</select></div>
-      <div class="cmprow"><label class="f">Zeitraum A</label>
-        <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.aF}" onchange="setCmp('aF',this.value)">
-        <span class="dash">–</span>
-        <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.aT}" onchange="setCmp('aT',this.value)">
-        <span class="tgroup">${presets('a')}</span></div>
-      <div class="cmprow"><label class="f">Zeitraum B</label>
-        <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.bF}" onchange="setCmp('bF',this.value)">
-        <span class="dash">–</span>
-        <input type="date" min="${F.dmin}" max="${F.dmax}" value="${c.bT}" onchange="setCmp('bT',this.value)">
-        <span class="tgroup">${presets('b')}</span></div>
-      <div class="cmprow"><label class="f">${dimName} auswählen</label><div class="cmpchk">${chk}</div></div>
+      <div class="cmprow"><label class="f">Kennzahl</label><select onchange="setCmp('metric',this.value)">${metricOpts}</select></div>
+      <div class="cmprow"><label class="f">Aufschlüsseln nach</label><select onchange="setCmp('serie',this.value)">${brOpts}</select></div>
+      ${stdRow}
+      ${itemRow}
+      <div style="border-top:1px solid var(--hair);margin:8px 0 12px"></div>
+      ${perRows}
+      <div class="cmprow"><label class="f">Zeitraum +</label><span class="tgroup">${monBtns}</span>
+        <button class="addbtn" onclick="addPeriodFull()">+ ganzer Zeitraum</button></div>
     </div>
     <div class="cmpbox" id="cmpwetter"></div>
     <div class="card"><div id="cmpplot" class="plot"></div></div>
@@ -780,63 +850,55 @@ function renderCompare(){
   drawCompare();
   drawCmpWetter();
 }
-function cmpPreset(who,k){const f=(who==="a")?"aF":"bF",t=(who==="a")?"aT":"bT";
-  if(k==="all"){state.cmp[f]=F.dmin;state.cmp[t]=F.dmax;}else{state.cmp[f]=k+"-01";state.cmp[t]=monEnd(k);}renderCompare();}
 function drawCmpWetter(){
-  const c=state.cmp,sel=[...c.sel],el=document.getElementById("cmpwetter");if(!el)return;
-  const wa=weatherFor(sel,c.aF,c.aT),wb=weatherFor(sel,c.bF,c.bT);
+  const c=state.cmp,el=document.getElementById("cmpwetter");if(!el)return;
+  // Wetter nur bei Einnahmen/Gewinn sinnvoll – bei Ausgaben ausblenden (kein Zusammenhang)
+  if(c.metric==="kosten_eur"){el.hidden=true;el.innerHTML="";return;}
+  el.hidden=false;
+  const stds=c.std==="alle"?standortNamen():[c.std];
   const cell=(w)=>w?`Ø Temperatur <b>${w.temp.toFixed(1).replace(".",",")} °C</b> · Niederschlag <b>${Math.round(w.prec)} mm</b> · Regentage <b>${w.reg}</b>`:"keine Wetterdaten";
-  el.innerHTML=`<h4>🌤️ Wetter je Zeitraum <span style="font-weight:400;color:var(--muted);font-size:12px">(Ø der gewählten Standorte)</span></h4>
-    <div class="cmprow"><label class="f" style="min-width:96px">Zeitraum A</label><span>${cell(wa)}</span></div>
-    <div class="cmprow"><label class="f" style="min-width:96px">Zeitraum B</label><span>${cell(wb)}</span></div>`;
+  const rows=c.perioden.map(p=>{const w=weatherFor(stds,p.f,p.t);
+    return `<div class="cmprow"><label class="f" style="min-width:120px">${perLabel(p)}</label><span>${cell(w)}</span></div>`;}).join("");
+  el.innerHTML=`<h4>🌤️ Wetter je Zeitraum <span style="font-weight:400;color:var(--muted);font-size:12px">(Ø der gewählten Standorte)</span></h4>${rows}`;
 }
 function drawCompare(){
   const c=state.cmp,el=document.getElementById("cmpplot");if(!plReady(el))return;
-  const kd=KPIS[c.metric],sel=[...c.sel];
-  const dimLabel=c.dim==="standort"?"Standort":(EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten");
-  const rows=sel.map(nm=>({nm,a:compareValue(nm,c.metric,c.aF,c.aT),b:compareValue(nm,c.metric,c.bF,c.bT)}))
-    .filter(r=>r.a!=null||r.b!=null).sort((x,y)=>(y.b??y.a??0)-(x.b??x.a??0));
-  const fmtv=v=>cmpFmt(v,c.metric);
-  const dez=(c.metric==="wartezeit_min"||c.metric==="zufriedenheit")?2:(EINHEIT[c.metric]==="%"?1:0);
-  // feste Farben je Dimension – konsistent zu Ranking/Kuchen; A kräftig, B hell
-  const cf=c.dim==="standort"?standortFarben():knotenFarben();
-  const cols=rows.map((r,i)=>cf[r.nm]||SERIES[i%SERIES.length]);
-  const aLbl="A · "+fmtDE(c.aF)+"–"+fmtDE(c.aT), bLbl="B · "+fmtDE(c.bF)+"–"+fmtDE(c.bT);
-  const trA={type:"bar",name:aLbl,x:rows.map(r=>r.nm),y:rows.map(r=>r.a),
-    marker:{color:cols},offsetgroup:"a",showlegend:false,
-    hovertemplate:"%{x}<br>"+aLbl+": %{y:,."+dez+"f}<extra></extra>"};
-  const trB={type:"bar",name:bLbl,x:rows.map(r=>r.nm),y:rows.map(r=>r.b),
-    marker:{color:cols.map(x=>lighten(x,0.55)),line:{color:cols,width:1.4}},offsetgroup:"b",showlegend:false,
-    hovertemplate:"%{x}<br>"+bLbl+": %{y:,."+dez+"f}<extra></extra>"};
-  const lay=baseLayout(kzLabel(c.metric)+" – Zeitraum A gegen B je "+dimLabel,
-    "kräftig = Zeitraum A · hell = Zeitraum B",Math.max(360,140+30*rows.length));
-  lay.barmode="group";lay.bargap=0.32;lay.bargroupgap=0.12;
-  lay.yaxis.title={text:kzLabel(c.metric)+" ("+(EINHEIT[c.metric]||"")+")",font:{size:12,color:cssv("--ink-2")}};
-  lay.yaxis.rangemode="tozero";lay.showlegend=false;
-  lay.margin={l:74,r:24,t:70,b:64};
-  Plotly.newPlot(el,[trA,trB],lay,CFG);
-  // Tabelle – Summe nur bei additiven Kennzahlen sinnvoll (nicht bei Ø/Prozent)
-  const additiv=ADDITIV.has(c.metric);
-  let tot={a:0,b:0};rows.forEach(r=>{tot.a+=r.a||0;tot.b+=r.b||0;});
-  const tr=rows.map(r=>{const d=(r.a&&r.b)?((r.b-r.a)/Math.abs(r.a)*100):null;
+  const metric=c.metric,kd=KPIS[metric];
+  const {members,farb,label}=cmpSeries();
+  const per=c.perioden,xlab=per.map(perLabel);
+  const dez=(metric==="wartezeit_min"||metric==="zufriedenheit")?2:0;
+  const data=members.map((m,i)=>{const col=farb[m]||SERIES[i%SERIES.length];
+    return {type:"bar",name:m,x:xlab,y:per.map(p=>cmpVal(p,m)),marker:{color:col},
+      hovertemplate:"%{x} · "+m+"<br>%{y:,."+dez+"f} "+(EINHEIT[metric]||"")+"<extra></extra>"};
+  }).filter(tr=>tr.y.some(v=>v!=null));
+  const lay=baseLayout(kzLabel(metric)+" – Vergleich nach "+label,
+    per.length>1?"Zeiträume nebeneinander":"",Math.max(340,110+24*members.length));
+  lay.barmode="group";lay.bargap=0.3;lay.bargroupgap=0.1;
+  lay.yaxis.title={text:kzLabel(metric)+" ("+(EINHEIT[metric]||"")+")",font:{size:12,color:cssv("--ink-2")}};
+  lay.yaxis.rangemode="tozero";lay.showlegend=members.length>1;
+  lay.legend={orientation:"h",y:-0.16,font:{color:cssv("--ink-2"),size:12}};
+  lay.margin={l:76,r:24,t:64,b:members.length>1?88:56};
+  Plotly.newPlot(el,data,lay,CFG);
+  // Tabelle: Zeilen = Serie, Spalten = Zeiträume (+ Δ letzter/erster)
+  const additiv=ADDITIV.has(metric),fmtv=v=>cmpFmt(v,metric),mehr=per.length>1;
+  const head=`<th>${label}</th>`+xlab.map(x=>`<th>${x}</th>`).join("")+(mehr?"<th>Δ</th>":"");
+  const dcol=(ys)=>{const f=ys[0],l=ys[ys.length-1];const d=(f&&l)?((l-f)/Math.abs(f)*100):null;
     const dc=d==null?"":(((d>=0)===(kd.richtung==="groesser_ist_besser"))?cssv("--gruen"):cssv("--rot"));
-    return `<tr><td>${r.nm}</td><td class="mono">${fmtv(r.a)}</td><td class="mono">${fmtv(r.b)}</td>
-      <td class="mono" style="color:${dc}">${d==null?"–":(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %"}</td></tr>`;}).join("");
-  const dtot=(tot.a&&tot.b)?((tot.b-tot.a)/Math.abs(tot.a)*100):null;
-  const gesamtRow=additiv
-    ?`<tr style="font-weight:600"><td>Gesamt (Auswahl)</td><td class="mono">${fmtv(tot.a)}</td><td class="mono">${fmtv(tot.b)}</td>
-       <td class="mono">${dtot==null?"–":(dtot>=0?"▲ ":"▼ ")+Math.abs(dtot).toFixed(1).replace(".",",")+" %"}</td></tr>`
-    :`<tr style="font-weight:600;color:var(--muted)"><td>Gesamt (Auswahl)</td><td class="mono">–</td><td class="mono">–</td>
-       <td class="mono" style="font-weight:400">Ø/‑Kennzahl nicht summierbar</td></tr>`;
-  document.getElementById("cmptable").innerHTML=`<table><thead><tr><th>${dimLabel}</th><th>Zeitraum A</th><th>Zeitraum B</th><th>Δ</th></tr></thead>
-    <tbody>${tr}${gesamtRow}</tbody></table>`;
+    return {d,html:`<td class="mono" style="color:${dc}">${d==null?"–":(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %"}</td>`};};
+  const body=members.map(m=>{const ys=per.map(p=>cmpVal(p,m));if(ys.every(v=>v==null))return "";
+    return `<tr><td>${m}</td>${ys.map(v=>`<td class="mono">${fmtv(v)}</td>`).join("")}${mehr?dcol(ys).html:""}</tr>`;}).join("");
+  let gesamt="";
+  if(additiv&&members.length>1){const sums=per.map(p=>members.reduce((a,m)=>{const v=cmpVal(p,m);return a+(v||0);},0));
+    gesamt=`<tr style="font-weight:600"><td>Gesamt</td>${sums.map(v=>`<td class="mono">${fmtv(v)}</td>`).join("")}${mehr?dcol(sums).html:""}</tr>`;}
+  document.getElementById("cmptable").innerHTML=`<table><thead><tr>${head}</tr></thead><tbody>${body}${gesamt}</tbody></table>`;
 }
 function drill(name){state.pfad=[...state.pfad,name];state.cmp=null;render();}
 function goto(i){state.pfad=state.pfad.slice(0,i);state.cmp=null;render();}
 
 function renderCrumbs(){
   const n=node(),start=ROLLES[state.role].start_ebene;
-  let h=`<span class="crumb ${state.pfad.length?'':'here'}" onclick="goto(0)">Gesamt</span>`;
+  const wurzel=istEinzelStand(ROLLES[state.role])?("📍 "+aktStand()):"Gesamt";
+  let h=`<span class="crumb ${state.pfad.length?'':'here'}" onclick="goto(0)">${wurzel}</span>`;
   state.pfad.forEach((k,i)=>{const last=i===state.pfad.length-1;
     h+=`<span class="sep">›</span><span class="crumb ${last?'here':''}" onclick="goto(${i+1})">${EBN[start+1+i]}: ${k}</span>`;});
   document.getElementById("crumbs").innerHTML=h;
@@ -962,8 +1024,16 @@ function renderTable(){
     usable.map(([k])=>`<td class="mono">${r[k]!=null?fmt(r[k],k):"–"}</td>`).join("")+`</tr>`).join("");
   el.innerHTML=`<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
+function updateStandUI(){
+  const box=document.getElementById("standbox"),sel=document.getElementById("standsel"),role=ROLLES[state.role];
+  if(!istEinzelStand(role)){box.hidden=true;return;}
+  box.hidden=false;const cur=aktStand();
+  sel.innerHTML=alleStandorte().map(s=>`<option value="${s}" ${s===cur?"selected":""}>${s}</option>`).join("");
+  sel.onchange=()=>{state.standWahl=sel.value;state.pfad=[];state.cmp=null;render();};
+}
 function render(){
   CUR=computeNode();
+  updateStandUI();
   renderCrumbs();
   if(state.mode==="vergleich"){renderCompare();return;}renderHead();renderKPIs();
   renderSplit();renderResult();renderProdukte();renderWeatherPanel();renderDrill();renderTable();
@@ -1055,7 +1125,7 @@ function initDates(){
 function initRoles(){
   const sel=document.getElementById("role");
   sel.innerHTML=Object.keys(ROLLES).map(k=>`<option value="${k}">${ROLLES[k].beschreibung}</option>`).join("");
-  sel.onchange=()=>{state.role=sel.value;state.pfad=[];document.getElementById("roledesc").textContent=ROLLES[sel.value].beschreibung;render();};
+  sel.onchange=()=>{state.role=sel.value;state.pfad=[];state.standWahl=null;state.cmp=null;document.getElementById("roledesc").textContent=ROLLES[sel.value].beschreibung;render();};
   state.role=Object.keys(ROLLES)[0];document.getElementById("roledesc").textContent=ROLLES[state.role].beschreibung;
 }
 document.getElementById("helpbtn").onclick=()=>document.getElementById("modal").classList.add("open");
@@ -1066,7 +1136,9 @@ document.getElementById("themebtn").onclick=()=>{const r=document.documentElemen
   r.setAttribute("data-theme",dark?"light":"dark");render();};
 initDates();initRoles();render();
 document.getElementById("xlsxfile").addEventListener("change",e=>{if(e.target.files[0])importExcel(e.target.files[0]);});  // Text sofort; Diagramme sobald Plotly geladen ist
-window.goto=goto;window.drill=drill;window.setProd=setProd;window.setGran=setGran;window.setRange=setRange;window.setMode=setMode;window.setCmp=setCmp;window.toggleSel=toggleSel;window.cmpPreset=cmpPreset;
+window.goto=goto;window.drill=drill;window.setProd=setProd;window.setGran=setGran;window.setRange=setRange;window.setMode=setMode;window.setCmp=setCmp;
+window.setPeriod=setPeriod;window.addPeriodMonth=addPeriodMonth;window.addPeriodFull=addPeriodFull;window.removePeriod=removePeriod;
+window.setSplitMetric=setSplitMetric;window.setSplitView=setSplitView;
 (function loadPlotly(){
   var srcs=["https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js",
             "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"];
