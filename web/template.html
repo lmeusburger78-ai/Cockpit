@@ -258,9 +258,11 @@ function ranking(el,kinder,kid,kdef,kindEbene){
   const cols=rows.map(r=>{if(hasA)return statusCol(r[kid+"_ampel"]);
      const t=(r[kid]-lo)/(hi-lo+1e-9),ramp=SEQ.slice(2);return ramp[Math.min(Math.round(t*(ramp.length-1)),ramp.length-1)];});
   const lay=baseLayout(`${kdef.name} nach ${EBN[node().ebene+1]||"Knoten"}`,"größter Wert oben · Klick führt tiefer",
-     Math.max(230,58+40*rows.length));
+     Math.max(470,80+58*rows.length));
+  lay.margin={l:130,r:70,t:70,b:54};
+  lay.bargap=0.32;
   lay.xaxis.title={text:`${kdef.name} (${EINHEIT[kid]||""})`,font:{size:12,color:cssv("--ink-2")}};
-  lay.xaxis.rangemode="tozero";lay.showlegend=false;
+  lay.xaxis.rangemode="tozero";lay.xaxis.automargin=true;lay.yaxis.automargin=true;lay.showlegend=false;
   const tr={type:"bar",orientation:"h",x:vals,y:rows.map(r=>r[kindEbene]),marker:{color:cols},
     text:vals.map(v=>fmtShort(v,kid)),textposition:"outside",textfont:{color:cssv("--ink-2"),size:12},
     cliponaxis:false,hovertemplate:"%{y}<br>"+kdef.name+": %{text}<extra></extra>"};
