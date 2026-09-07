@@ -55,6 +55,11 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
   border-radius:10px;background:var(--accent-soft);color:var(--accent);font:inherit;font-weight:600;font-size:13px;cursor:pointer}
 .theme-tog{background:none;border:1px solid var(--hair);border-radius:8px;color:var(--ink-2);
   padding:6px 10px;font:inherit;font-size:12px;cursor:pointer;width:100%}
+.uploadbtn{display:block;width:100%;text-align:center;padding:10px 12px;border:1px dashed var(--accent);
+  border-radius:10px;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:13px;cursor:pointer}
+.uploadbtn:hover{background:var(--surface-2)}
+#uploadmsg{font-size:12px;margin-top:6px}
+#uploadmsg.ok{color:var(--gruen)} #uploadmsg.err{color:var(--rot)}
 
 /* Main */
 .main{padding:26px 30px 60px;max-width:1240px}
@@ -172,6 +177,10 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
       <div class="srcrow"><span class="ic">📄</span><div class="t"><b>limonadenstaende.xlsx</b><br><span>131.710 Fakten · Mai–Juli 2026</span></div></div>
       <div class="srcrow"><span class="ic">🌤️</span><div class="t"><b>Wetter (Ø aller Märkte)</b><br><span>Open-Meteo · Temperatur &amp; Niederschlag</span></div></div>
     </div>
+    <div>
+      <label class="uploadbtn">📤 Excel laden &amp; anzeigen<input type="file" id="xlsxfile" accept=".xlsx" hidden></label>
+      <div id="uploadmsg"></div>
+    </div>
     <button class="theme-tog" id="themebtn">◐ Hell / Dunkel</button>
     <button class="help-btn" id="helpbtn">ℹ︎ Excel-Upload: so geht's</button>
   </aside>
@@ -249,6 +258,15 @@ const EINHEIT={umsatz_eur:"€",kosten_eur:"€",ergebnis_eur:"€",bonwert_eur:
 const SERIES=["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#e34948"];
 const SEQ=["#cde2fb","#9ec5f4","#6da7ec","#3987e5","#256abf","#184f95","#0d366b"];
 const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let FARB={};
+function farbMap(kinder,kid,kindeb){
+  const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>b[kid]-a[kid]);
+  const m={};let i=0;rows.forEach(r=>{m[r[kindeb]]=SERIES[i++%SERIES.length];});
+  // Kosten-only Knoten (ohne Wert) hinten anfügen
+  kinder.forEach(r=>{const nm=r[kindeb];if(!(nm in m))m[nm]=SERIES[i++%SERIES.length];});
+  return m;
+}
+function farbeFuer(nm,i){return FARB[nm]||SERIES[(i||0)%SERIES.length];}
 function statusCol(a){return a==="gruen"?cssv("--gruen"):a==="gelb"?cssv("--gelb"):a==="rot"?cssv("--rot"):cssv("--muted");}
 
 const deDec=s=>s.replace(/\B(?=(\d{3})+(?!\d))/g,".");
@@ -310,15 +328,29 @@ function computeNode(){
   const role=ROLLES[state.role],start=role.start_ebene,maxe=role.max_ebene,ebene=start+state.pfad.length;
   const filt=filterOf(role,state.pfad),std=filt.ebene_2||null;
   const rows=salesFilt(filt), m=metrics(rows,ebene,filt);
-  // Monatsreihe (für Delta + Trend)
+  // Vergleichszeitraum: gleich lange Periode direkt davor
+  const isoD=d=>{const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);};
+  const d0=new Date(state.from),d1=new Date(state.to);
+  const lenDays=Math.round((d1-d0)/86400000)+1;
+  const isMonat=(state.from.slice(8)==="01"&&state.to===monEnd(state.from.slice(0,7)));
+  let pFromS,pToS;
+  if(isMonat){let y=+state.from.slice(0,4),mo=+state.from.slice(5,7)-1;if(mo<1){mo=12;y--;}
+    const pm=y+"-"+String(mo).padStart(2,"0");pFromS=pm+"-01";pToS=monEnd(pm);}
+  else{const pTo=new Date(d0.getTime()-86400000),pFrom=new Date(pTo.getTime()-(lenDays-1)*86400000);
+    pFromS=isoD(pFrom);pToS=isoD(pTo);}
+  const hatVergleich=pToS>=F.dmin;
+  const vlabel=isMonat?"ggü. Vormonat":"ggü. Vorzeitraum";
+  function metricsAt(from,to){const sf=state.from,stt=state.to;state.from=from;state.to=to;
+    const mm=metrics(salesFilt(filt),ebene,filt);state.from=sf;state.to=stt;return mm;}
+  const mPrev=hatVergleich?metricsAt(pFromS,pToS):null;
+  // Monatsreihe (für Trend)
   const mons=monthsIn(state.from,state.to);
   const monat=mons.map(mo=>{const rr=rows.filter(r=>r.d.slice(0,7)===mo);
     const mm=metrics(rr,ebene,filt);return Object.assign({periode:mo,ebene_1:EBENE1,ebene_2:std},mm);});
   // Kacheln
   const kacheln=role.kennzahlen.filter(k=>KPIS[k]).map(kid=>{
     const kd=KPIS[kid],val=m[kid];let delta=null;
-    const reihe=monat.map(x=>x[kid]).filter(v=>v!=null);
-    if(reihe.length>=2&&reihe[reihe.length-2])delta=(reihe[reihe.length-1]-reihe[reihe.length-2])/Math.abs(reihe[reihe.length-2])*100;
+    if(mPrev){const pv=mPrev[kid];if(pv!=null&&!isNaN(pv)&&pv!==0&&val!=null)delta=(val-pv)/Math.abs(pv)*100;}
     return {id:kid,name:kd.name,einheit:kd.einheit||"",wert:(val==null||isNaN(val))?null:val,
       ampel:ampelOf(kid,val),delta_pct:delta,richtung:kd.richtung};
   }).filter(k=>k.wert!=null);
@@ -366,7 +398,7 @@ function computeNode(){
   }
   return {rolle:state.role,pfad:state.pfad,ebene,kann_tiefer:ebene<maxe,
     titel:(state.pfad.length?state.pfad[state.pfad.length-1]:"Gesamt"),
-    kennzahlen:role.kennzahlen.filter(k=>KPIS[k]),kacheln,kinder,kinder_names,
+    kennzahlen:role.kennzahlen.filter(k=>KPIS[k]),kacheln,kinder,kinder_names,vergleich_label:vlabel,
     kind_ebene:"ebene_"+(ebene+1),monat,waterfall,produkte,taeglich_umsatz,
     wetter:{std,ort:std&&ORTE[std]?ORTE[std].ort:null,kennzahlen:wkz,taeglich:wt}};
 }
@@ -390,9 +422,8 @@ function ranking(el,kinder,kid,kdef,kindEbene){
   if(!plReady(el))return;
   const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>a[kid]-b[kid]);
   const hasA="ampel" in kdef;
-  const vals=rows.map(r=>r[kid]),lo=Math.min(...vals),hi=Math.max(...vals);
-  const cols=rows.map(r=>{if(hasA)return statusCol(r[kid+"_ampel"]);
-     const t=(r[kid]-lo)/(hi-lo+1e-9),ramp=SEQ.slice(2);return ramp[Math.min(Math.round(t*(ramp.length-1)),ramp.length-1)];});
+  const vals=rows.map(r=>r[kid]);
+  const cols=rows.map(r=>hasA?statusCol(r[kid+"_ampel"]):farbeFuer(r[kindEbene]));
   const lay=baseLayout(`${kdef.name} nach ${EBN[node().ebene+1]||"Knoten"}`,"größter Wert oben · Klick führt tiefer",
      Math.max(470,80+58*rows.length));
   lay.margin={l:130,r:70,t:70,b:54};
@@ -410,7 +441,7 @@ function pie(el,kinder,kid,kdef){
   const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>b[kid]-a[kid]);
   const labels=rows.map(r=>r[node().kind_ebene]),vals=rows.map(r=>r[kid]);
   const sum=vals.reduce((a,b)=>a+b,0);
-  const cols=labels.map((_,i)=>SERIES[i%SERIES.length]);
+  const cols=labels.map(l=>farbeFuer(l));
   const lay=baseLayout(`${kdef.name}-Anteile je ${EBN[node().ebene+1]||"Knoten"}`,
      node().kann_tiefer?"Klick auf ein Segment führt tiefer":"Anteil am Ganzen",470);
   lay.margin={l:6,r:6,t:66,b:10};lay.showlegend=false;
@@ -428,7 +459,7 @@ function pieLegend(el,kinder,kid){
   const sum=rows.reduce((a,r)=>a+r[kid],0),tief=node().kann_tiefer;
   el.innerHTML=rows.map((r,i)=>{const nm=r[node().kind_ebene],pct=(r[kid]/sum*100).toFixed(1).replace(".",",");
     return `<div class="pileg" ${tief?`onclick="drill('${String(nm).replace(/'/g,"\'")}')"`:""}>
-      <span class="sw" style="background:${SERIES[i%SERIES.length]}"></span>
+      <span class="sw" style="background:${farbeFuer(nm,i)}"></span>
       <div><div class="nm">${nm}</div><div class="vl">${fmtShort(r[kid],kid)} · ${pct}%</div></div>
       ${tief?'<span class="ar">↳</span>':''}</div>`;}).join("");
 }
@@ -579,7 +610,7 @@ function renderKPIs(){
     const unit=EINHEIT[k.id]||"";
     let delta="";if(k.delta_pct!=null){const gut=(k.delta_pct>=0)===(k.richtung==="groesser_ist_besser");
       const c=gut?cssv("--gruen"):cssv("--rot");const ar=k.delta_pct>=0?"▲":"▼";
-      delta=`<div class="k-delta" style="color:${c}">${ar} ${Math.abs(k.delta_pct).toFixed(1).replace(".",",")} % ggü. Vormonat</div>`;}
+      delta=`<div class="k-delta" style="color:${c}">${ar} ${Math.abs(k.delta_pct).toFixed(1).replace(".",",")} % ${node().vergleich_label}</div>`;}
     const dot=k.ampel?`<span class="dot" style="background:${statusCol(k.ampel)}"></span>`:"";
     const tip=GLOSS[k.id]?` title="${GLOSS[k.id]}"`:"";
     return `<div class="kpi"><div class="k-lbl"${tip} style="${GLOSS[k.id]?"cursor:help;text-decoration:underline dotted var(--hair);text-underline-offset:3px":""}">${dot}${k.name}</div>
@@ -605,6 +636,7 @@ function renderSplit(){
   el.innerHTML=`<div class="sec-h">Aufteilung nach ${EBN[n.ebene+1]||"Knoten"}</div>
     <div class="grid2"><div class="card"><div id="rankplot" class="plot"></div></div>
     <div class="card"><div class="pierow"><div id="pieplot"></div><div id="pielegend" class="pielegend"></div></div></div></div>`;
+  FARB=farbMap(n.kinder,pieKid,n.kind_ebene);
   ranking(document.getElementById("rankplot"),n.kinder,leit,KPIS[leit],n.kind_ebene);
   pie(document.getElementById("pieplot"),n.kinder,pieKid,KPIS[pieKid]);
   pieLegend(document.getElementById("pielegend"),n.kinder,pieKid);
@@ -631,7 +663,7 @@ function renderDrill(){
   const n=node(),el=document.getElementById("sec-drill");
   if(!(n.kann_tiefer&&n.kinder_names.length)){el.innerHTML="";return;}
   const chips=n.kinder_names.map((k,i)=>`<div class="chip" onclick="drill('${k.replace(/'/g,"\\'")}')">
-    <span class="cdot" style="background:${SERIES[i%SERIES.length]}"></span>${k}<span class="arr">↳</span></div>`).join("");
+    <span class="cdot" style="background:${farbeFuer(k,i)}"></span>${k}<span class="arr">↳</span></div>`).join("");
   el.innerHTML=`<div class="sec-h">Tiefer zu einzelnem ${EBN[n.ebene+1]||"Knoten"}</div>
     <div class="chips">${chips}</div><div class="hint">Ein Klick auf einen Balken oben oder auf eine Kachel öffnet die nächste Ebene.</div>`;
 }
@@ -666,6 +698,57 @@ function render(){
 }
 
 // ---------- init ----------
+
+function loadXLSX(cb){
+  if(typeof XLSX!=="undefined"){cb(true);return;}
+  const srcs=["https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"];let i=0;
+  (function nx(){if(typeof XLSX!=="undefined"){cb(true);return;}if(i>=srcs.length){cb(false);return;}
+    const sc=document.createElement("script");sc.src=srcs[i++];sc.onload=()=>cb(true);sc.onerror=nx;document.head.appendChild(sc);})();
+}
+const MON_NUM={jänner:"01",januar:"01",februar:"02","märz":"03",april:"04",mai:"05",juni:"06",
+  juli:"07",august:"08",september:"09",oktober:"10",november:"11",dezember:"12"};
+function isoOf(v){if(v instanceof Date){const z=new Date(v.getTime()-v.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);}
+  const s=String(v);const m=s.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];
+  const d=s.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);if(d)return d[3]+"-"+d[2].padStart(2,"0")+"-"+d[1].padStart(2,"0");
+  return s.slice(0,10);}
+function num(v){if(typeof v==="number")return v;return parseFloat(String(v).replace(/\./g,"").replace(",","."))||0;}
+function sheetRows(wb,name){const ws=wb.Sheets[name];if(!ws)return[];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,cellDates:true});
+  let hi=aoa.findIndex(r=>r&&r.some(c=>/^(Standort|Kostenstelle|BonNr|BuchNr)$/i.test(String(c).trim())));
+  if(hi<0)hi=0;const head=aoa[hi].map(c=>String(c).trim());const out=[];
+  for(let i=hi+1;i<aoa.length;i++){const r=aoa[i];if(!r||r.every(c=>c==null||c===""))continue;
+    const o={};head.forEach((h,j)=>o[h]=r[j]);out.push(o);}
+  return out;}
+function importExcel(file){
+  const msg=document.getElementById("uploadmsg");msg.className="";msg.textContent="Lese Datei …";
+  loadXLSX(ok=>{
+    if(!ok){msg.className="err";msg.textContent="Excel-Bibliothek konnte nicht geladen werden.";return;}
+    const rd=new FileReader();
+    rd.onload=e=>{try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array",cellDates:true});
+      const bon=sheetRows(wb,"Bonierungen"),aus=sheetRows(wb,"Ausgaben");
+      if(!bon.length){msg.className="err";msg.textContent="Blatt „Bonierungen“ nicht gefunden.";return;}
+      const sm={};bon.forEach(r=>{const d=isoOf(r["Datum"]);if(!d||d.length<10)return;
+        const s=String(r["Standort"]||"").trim(),p=String(r["Produkt"]||"").trim();
+        const g=String(r["Größe"]||r["Groesse"]||"").indexOf("klein")>=0?"klein":"gross";
+        const k=d+"|"+s+"|"+p+"|"+g;const o=sm[k]||(sm[k]={d,s,p,g,um:0,be:0,tx:0,wz:0,zf:0});
+        o.um+=num(r["Betrag (€)"]);o.be+=num(r["Menge"]);o.tx+=1;
+        o.wz+=num(r["Wartezeit (Min.)"]);o.zf+=num(r["Zufriedenheit"]);});
+      const sales=Object.values(sm);if(!sales.length){msg.className="err";msg.textContent="Keine gültigen Verkaufszeilen.";return;}
+      const jahr=sales[0].d.slice(0,4);
+      const cm={};aus.forEach(r=>{const mn=MON_NUM[String(r["Monat"]||"").trim().toLowerCase()];if(!mn)return;
+        const mon=jahr+"-"+mn,ks=String(r["Kostenstelle"]||"").trim(),ka=String(r["Kategorie"]||"").trim();
+        const k=mon+"|"+ks+"|"+ka;const o=cm[k]||(cm[k]={mon,ks,ka,be:0});o.be+=num(r["Betrag (€)"]);});
+      F.sales=sales;F.costs=Object.values(cm);
+      const ds=sales.map(r=>r.d).sort();F.dmin=ds[0];F.dmax=ds[ds.length-1];
+      // Standorte ohne Beispiel-Wetter: Wetter bleibt Beispieldaten, nur passende Standorte behalten
+      state.pfad=[];initDates();
+      msg.className="ok";msg.textContent="Import ok: "+sales.length.toLocaleString("de-DE")+" Verkaufstage, Zeitraum "+F.dmin+" bis "+F.dmax+". Darstellung aktualisiert.";
+    }catch(err){msg.className="err";msg.textContent="Fehler beim Lesen: "+err.message;}};
+    rd.readAsArrayBuffer(file);
+  });
+}
 
 const MON_DE={"01":"Jänner","02":"Februar","03":"März","04":"April","05":"Mai","06":"Juni",
   "07":"Juli","08":"August","09":"September","10":"Oktober","11":"November","12":"Dezember"};
@@ -709,7 +792,8 @@ document.getElementById("modal").onclick=e=>{if(e.target.id==="modal")e.target.c
 document.getElementById("themebtn").onclick=()=>{const r=document.documentElement;
   const cur=r.getAttribute("data-theme");const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
   r.setAttribute("data-theme",dark?"light":"dark");render();};
-initDates();initRoles();render();  // Text sofort; Diagramme sobald Plotly geladen ist
+initDates();initRoles();render();
+document.getElementById("xlsxfile").addEventListener("change",e=>{if(e.target.files[0])importExcel(e.target.files[0]);});  // Text sofort; Diagramme sobald Plotly geladen ist
 window.goto=goto;window.drill=drill;window.setProd=setProd;window.setRange=setRange;
 (function loadPlotly(){
   var srcs=["https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js",
