@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cockpit · Mein Portfolio</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">◈</div>
+        <div class="brand-text">
+          <strong>Cockpit</strong>
+          <span>Portfolio Dashboard</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-item active" data-page="portfolio">
+          <span class="nav-ico">◔</span> Portfolio
+        </button>
+        <button class="nav-item" data-page="watchlist">
+          <span class="nav-ico">☆</span> Watchlist
+        </button>
+        <button class="nav-item" data-page="news">
+          <span class="nav-ico">✦</span> News &amp; Zahlen
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <button class="btn ghost block" id="btn-settings">⚙ Einstellungen</button>
+        <div class="data-badge" id="data-badge">Demo-Daten</div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="page-title">Portfolio</h1>
+          <p class="subtitle" id="page-subtitle">Übersicht deiner Anlagen</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn ghost" id="btn-theme" title="Hell / Dunkel">☾</button>
+          <button class="btn" id="btn-refresh">↻ Aktualisieren</button>
+        </div>
+      </header>
+
+      <section id="page-portfolio" class="page"></section>
+      <section id="page-watchlist" class="page" hidden></section>
+      <section id="page-news" class="page" hidden></section>
+    </main>
+  </div>
+
+  <!-- Modal host -->
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <div class="modal" id="modal">
+      <div class="modal-head">
+        <h2 id="modal-title">Titel</h2>
+        <button class="icon-btn" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="js/vendor/chart.umd.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/portfolio.js"></script>
+  <script src="js/watchlist.js"></script>
+  <script src="js/news.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
