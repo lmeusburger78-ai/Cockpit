@@ -85,6 +85,12 @@ with st.sidebar:
     st.caption(rolle.get("beschreibung", ""))
     st.divider()
 
+    _dmin = fakten["datum"].min().date()
+    _dmax = fakten["datum"].max().date()
+    _range = st.date_input("Zeitraum", (_dmin, _dmax), min_value=_dmin, max_value=_dmax,
+                           format="DD.MM.YYYY")
+    st.divider()
+
     q = store.quellen()
     st.markdown("**Datenquellen**")
     if q.empty:
@@ -109,6 +115,10 @@ with st.sidebar:
             else:
                 st.error("Import abgelehnt:")
                 st.code(bericht.text())
+
+# Zeitraum-Filter auf die Fakten anwenden (Kosten anteilig, siehe service.im_zeitraum)
+if isinstance(_range, (list, tuple)) and len(_range) == 2:
+    fakten = service.im_zeitraum(fakten, _range[0], _range[1])
 
 # ----------------------------------------------------------------- Navigation
 st.session_state.setdefault("pfad", {})

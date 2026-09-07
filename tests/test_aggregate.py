@@ -133,3 +133,16 @@ def test_rollen_sicht_und_drilldown(fakten, kpis):
     # eine Ebene tiefer: Größen des Produkts am Bahnhof
     groessen = sicht(fakten, kpis, rollen, "standleitung_bahnhof", ("Orangensaft", "groß 0,4 l"))
     assert set(groessen["ebene_4"]) == {"groß 0,4 l"}
+
+
+def test_im_zeitraum(fakten, kpis):
+    from cockpit.service import im_zeitraum
+    juni = im_zeitraum(fakten, "2026-06-01", "2026-06-30")
+    umsatz = verdichte(juni, kpis, 1, {}, nach_monat=False)["umsatz_eur"].iloc[0]
+    assert umsatz == pytest.approx(54719.1, abs=0.5)          # Juni-Umsatz
+    # Kosten des vollen Junis bleiben voll erhalten (kein Teilmonat)
+    assert juni[juni.kennzahl_id == "kosten_eur"]["wert"].sum() == pytest.approx(54176.45, abs=0.5)
+    # Teilmonat: halber Mai -> ~Hälfte der Mai-Kosten
+    halb = im_zeitraum(fakten, "2026-05-01", "2026-05-15")
+    mai_voll = fakten[(fakten.kennzahl_id == "kosten_eur") & (fakten.datum == "2026-05-01")]["wert"].sum()
+    assert halb[halb.kennzahl_id == "kosten_eur"]["wert"].sum() == pytest.approx(mai_voll * 15 / 31, rel=0.02)

@@ -115,6 +115,28 @@ def _knoten_filter(rolle: dict, pfad: tuple[str, ...]) -> dict:
     return filt
 
 
+def im_zeitraum(fakten: pd.DataFrame, von, bis) -> pd.DataFrame:
+    """Filtert Fakten auf den Zeitraum [von, bis]. Tageszeilen (Verkauf, Wetter)
+    werden per Datum gefiltert; monatliche Kostenzeilen anteilig nach überlappenden
+    Tagen skaliert, damit Teilmonate korrekt gewichtet werden."""
+    von, bis = pd.Timestamp(von), pd.Timestamp(bis)
+    ist_kosten = fakten["kennzahl_id"] == "kosten_eur"
+    tage = fakten[~ist_kosten]
+    tage = tage[(tage["datum"] >= von) & (tage["datum"] <= bis)]
+    kosten = fakten[ist_kosten].copy()
+    if not kosten.empty:
+        m0 = kosten["datum"].values.astype("datetime64[M]").astype("datetime64[ns]")
+        m1 = (pd.to_datetime(m0) + pd.offsets.MonthEnd(0)).normalize()
+        lo = pd.Series(m0, index=kosten.index).where(lambda x: x >= von, von)
+        hi = pd.Series(m1.values, index=kosten.index).where(lambda x: x <= bis, bis)
+        tage_im = (hi - lo).dt.days + 1
+        monatstage = (m1 - pd.to_datetime(m0)).days + 1
+        frac = (tage_im / monatstage).clip(lower=0)
+        kosten = kosten[frac > 0].copy()
+        kosten["wert"] = kosten["wert"] * frac[frac > 0].values
+    return pd.concat([tage, kosten], ignore_index=True)
+
+
 def produkt_mengen(fakten: pd.DataFrame, rolle: dict, pfad: tuple[str, ...]) -> pd.DataFrame:
     """Verkaufte Menge (Becher) und Umsatz je Produkt unter dem aktuellen Knoten –
     zusätzlich aufgeteilt nach Getränkegröße (klein/groß), damit die Oberfläche
@@ -201,4 +223,4 @@ def wetter_kennzahlen(fakten: pd.DataFrame, kpis: dict, standort: str | None = N
 __all__ = ["EBENEN", "konfig", "store_mit_beispiel", "importiere", "kachel_werte",
            "ebenen_namen", "naechste_knoten", "sicht", "verdichte",
            "wetter_taeglich", "wetter_kennzahlen", "standort_orte",
-           "produkt_mengen", "taeglicher_umsatz"]
+           "produkt_mengen", "taeglicher_umsatz", "im_zeitraum"]

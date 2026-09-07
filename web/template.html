@@ -114,6 +114,12 @@ h2.node{font-size:27px;margin:2px 0 3px;letter-spacing:-.02em;text-wrap:balance}
 .tgroup button+button{border-left:1px solid var(--hair)}
 .tglabel{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;
   align-self:center;margin-right:2px}
+.daterange{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);
+  border:1px solid var(--hair);border-radius:11px;padding:10px 14px;margin-bottom:16px;box-shadow:var(--shadow)}
+.daterange input[type=date]{border:1px solid var(--hair);border-radius:8px;background:var(--surface-2);
+  color:var(--ink);font:inherit;font-size:13px;padding:6px 9px}
+.daterange .dash{color:var(--muted)}
+.daterange .rlabel{margin-left:auto;color:var(--ink-2);font-size:12px}
 
 /* table */
 table{border-collapse:collapse;width:100%;font-size:12.5px}
@@ -172,6 +178,12 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
 
   <main class="main">
     <div class="crumbs" id="crumbs"></div>
+    <div class="daterange">
+      <span class="tglabel">Zeitraum</span>
+      <input type="date" id="dfrom"><span class="dash">–</span><input type="date" id="dto">
+      <span class="tgroup" id="presets"></span>
+      <span class="rlabel" id="rlabel"></span>
+    </div>
     <h2 class="node" id="nodetitle"></h2>
     <div class="subline" id="subline"></div>
     <div class="kpis" id="kpis"></div>
@@ -229,7 +241,7 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
   </div>
 </div>
 
-<script>const DATA=/*__DATA__*/;</script>
+<script>const F=/*__DATA__*/;</script>
 <script>
 const EINHEIT={umsatz_eur:"€",kosten_eur:"€",ergebnis_eur:"€",bonwert_eur:"€",becher:"Stk",
   transaktionen:"Bons",wartezeit_min:"Min.",zufriedenheit:"1–5",umsatzrendite_pct:"%",
@@ -258,10 +270,107 @@ const GLOSS={umsatz_eur:"Summe aller Verkäufe (Brutto-Umsatz) im Zeitraum.",
   becher:"Verkaufte Menge in Bechern.",transaktionen:"Anzahl der Bons (Verkäufe).",
   bonwert_eur:"Durchschnittlicher Umsatz je Bon (Umsatz ÷ Transaktionen).",
   kosten_eur:"Summe aller Kosten im Zeitraum."};
-let state={role:null,pfad:[]};
-const KPIS=DATA.kpis,ROLLES=DATA.rollen,EBN=DATA.ebenen,ORTE=DATA.orte;
-const nk=p=>p.length?p.join("|"):"_";
-const node=()=>DATA.nodes[state.role+"/"+nk(state.pfad)];
+let state={role:null,pfad:[],from:null,to:null};
+const KPIS=F.kpis,ROLLES=F.rollen,EBN=F.ebenen,ORTE=F.orte,EBENE1=F.ebene1;
+state.from=F.dmin; state.to=F.dmax;
+const AMPEL={wartezeit_min:{dir:"kl",g:5.5,y:6.5},zufriedenheit:{dir:"gr",g:3.8,y:3.4},
+  ergebnis_eur:{dir:"gr",g:0,y:-1000},umsatzrendite_pct:{dir:"gr",g:5,y:0}};
+function ampelOf(kid,v){const a=AMPEL[kid];if(!a||v==null||isNaN(v))return null;
+  if(a.dir==="kl")return v<=a.g?"gruen":(v<=a.y?"gelb":"rot");
+  return v>=a.g?"gruen":(v>=a.y?"gelb":"rot");}
+const WT={0:"Mo",1:"Di",2:"Mi",3:"Do",4:"Fr",5:"Sa",6:"So"};
+function wtag(ds){const d=new Date(ds+"T00:00:00");return WT[(d.getDay()+6)%7];}
+function monthsIn(from,to){const out=[];let y=+from.slice(0,4),m=+from.slice(5,7);
+  const ey=+to.slice(0,4),em=+to.slice(5,7);
+  while(y<ey||(y===ey&&m<=em)){out.push(y+"-"+String(m).padStart(2,"0"));m++;if(m>12){m=1;y++;}}return out;}
+function daysInMonth(y,m){return new Date(y,m,0).getDate();}
+function costFrac(mon){const y=+mon.slice(0,4),m=+mon.slice(5,7);
+  const m0=mon+"-01",m1=mon+"-"+String(daysInMonth(y,m)).padStart(2,"0");
+  const lo=state.from>m0?state.from:m0, hi=state.to<m1?state.to:m1;
+  if(hi<lo)return 0;
+  const dl=(new Date(hi)-new Date(lo))/86400000+1;return dl/daysInMonth(y,m);}
+function salesFilt(filt){return F.sales.filter(r=>r.d>=state.from&&r.d<=state.to
+  &&(!filt.ebene_2||r.s===filt.ebene_2)&&(!filt.ebene_3||r.p===filt.ebene_3)
+  &&(!filt.ebene_4||(String(filt.ebene_4).indexOf("klein")>=0?r.g==="klein":r.g==="gross")));}
+function costSum(filt){let k=0;F.costs.forEach(c=>{if(filt.ebene_2&&c.ks!==filt.ebene_2)return;
+  if(filt.ebene_3&&c.ka!==filt.ebene_3)return;const fr=costFrac(c.mon);if(fr>0)k+=c.be*fr;});return k;}
+function metrics(rows,ebene,filt){
+  let um=0,be=0,tx=0,wz=0,zf=0;rows.forEach(r=>{um+=r.um;be+=r.be;tx+=r.tx;wz+=r.wz;zf+=r.zf;});
+  const kos=costSum(filt);const hatV=rows.length>0;
+  const m={umsatz_eur:hatV?um:null,becher:hatV?be:null,transaktionen:hatV?tx:null,
+    wartezeit_min:tx?wz/tx:null,zufriedenheit:tx?zf/tx:null,kosten_eur:kos||null,
+    bonwert_eur:tx?um/tx:null};
+  if(ebene<=2){m.ergebnis_eur=um-kos;m.umsatzrendite_pct=um?(um-kos)/um*100:null;}
+  return m;}
+function filterOf(role,pfad){const start=role.start_ebene;const filt=Object.assign({},role.filter||{});
+  pfad.forEach((k,i)=>filt["ebene_"+(start+1+i)]=k);return filt;}
+function childField(ebene){return {1:"s",2:"p",3:"g"}[ebene];}   // Verkauf: E->Kindfeld
+function childCostField(ebene){return {1:"ks",2:"ka"}[ebene];}
+function computeNode(){
+  const role=ROLLES[state.role],start=role.start_ebene,maxe=role.max_ebene,ebene=start+state.pfad.length;
+  const filt=filterOf(role,state.pfad),std=filt.ebene_2||null;
+  const rows=salesFilt(filt), m=metrics(rows,ebene,filt);
+  // Monatsreihe (für Delta + Trend)
+  const mons=monthsIn(state.from,state.to);
+  const monat=mons.map(mo=>{const rr=rows.filter(r=>r.d.slice(0,7)===mo);
+    const mm=metrics(rr,ebene,filt);return Object.assign({periode:mo,ebene_1:EBENE1,ebene_2:std},mm);});
+  // Kacheln
+  const kacheln=role.kennzahlen.filter(k=>KPIS[k]).map(kid=>{
+    const kd=KPIS[kid],val=m[kid];let delta=null;
+    const reihe=monat.map(x=>x[kid]).filter(v=>v!=null);
+    if(reihe.length>=2&&reihe[reihe.length-2])delta=(reihe[reihe.length-1]-reihe[reihe.length-2])/Math.abs(reihe[reihe.length-2])*100;
+    return {id:kid,name:kd.name,einheit:kd.einheit||"",wert:(val==null||isNaN(val))?null:val,
+      ampel:ampelOf(kid,val),delta_pct:delta,richtung:kd.richtung};
+  }).filter(k=>k.wert!=null);
+  // Kinder (Ranking/Kuchen/Chips)
+  let kinder=[],kinder_names=[];const kf=childField(ebene),kcf=childCostField(ebene);
+  if(ebene<maxe){
+    const set=new Set();
+    if(kf)rows.forEach(r=>set.add(r[kf]==="klein"?"klein 0,2 l":r[kf]==="gross"?"groß 0,4 l":r[kf]));
+    if(kf==="g"){/* Größen */}
+    if(kcf)F.costs.forEach(c=>{const fr=costFrac(c.mon);if(fr>0)set.add(c[kcf]);});
+    // Sonderfall Größe: Werte sind klein/gross -> Labels
+    const names=[...set].sort();
+    names.forEach(nm=>{
+      const cfilt=Object.assign({},filt);cfilt["ebene_"+(ebene+1)]=nm;
+      const cr=salesFilt(cfilt),cm=metrics(cr,ebene+1,cfilt);
+      const row={ebene_1:EBENE1};for(let e=2;e<=ebene+1;e++)row["ebene_"+e]=(e===ebene+1?nm:filt["ebene_"+e]);
+      Object.keys(cm).forEach(k=>{row[k]=cm[k];if(AMPEL[k])row[k+"_ampel"]=ampelOf(k,cm[k]);});
+      kinder.push(row);
+    });
+    kinder_names=names;
+  }
+  // Produkte (Menge/Umsatz, klein/gross)
+  const pmap={};salesFilt(filt).forEach(r=>{const k=r.p;pmap[k]=pmap[k]||{produkt:k,becher_klein:0,becher_gross:0,umsatz_klein:0,umsatz_gross:0};
+    pmap[k]["becher_"+r.g]+=r.be;pmap[k]["umsatz_"+r.g]+=r.um;});
+  const produkte=Object.values(pmap).map(o=>({...o,becher:o.becher_klein+o.becher_gross,umsatz_eur:o.umsatz_klein+o.umsatz_gross}))
+    .sort((a,b)=>b.becher-a.becher);
+  // Tagesumsatz (nur Markt)
+  let taeglich_umsatz=[];
+  if(std){const dmap={};rows.forEach(r=>{dmap[r.d]=(dmap[r.d]||0)+r.um;});
+    taeglich_umsatz=Object.keys(dmap).sort().map(d=>({datum:d,umsatz_eur:Math.round(dmap[d]*100)/100,wochentag:wtag(d)}));}
+  // Wetter (Markt oder gemittelt)
+  const wrows=F.weather.filter(r=>r.d>=state.from&&r.d<=state.to&&(!std||r.s===std));
+  const wday={};wrows.forEach(r=>{const o=wday[r.d]=wday[r.d]||{n:0,tmean:0,tmin:0,tmax:0,prec:0};
+    o.n++;o.tmean+=r.tmean;o.tmin+=r.tmin;o.tmax+=r.tmax;o.prec+=r.prec;});
+  const wt=Object.keys(wday).sort().map(d=>{const o=wday[d];return {datum:d,temperatur_c:o.tmean/o.n,
+    temperatur_min_c:o.tmin/o.n,temperatur_max_c:o.tmax/o.n,niederschlag_mm:o.prec/o.n};});
+  const wsumPrec=wt.reduce((a,x)=>a+x.niederschlag_mm,0),wmeanT=wt.length?wt.reduce((a,x)=>a+x.temperatur_c,0)/wt.length:0;
+  const wkz=wt.length?[{name:"Ø Temperatur",wert:Math.round(wmeanT*10)/10},
+    {name:"Niederschlag",wert:Math.round(wsumPrec)},{name:"Regentage",wert:wt.filter(x=>x.niederschlag_mm>0).length}]:[];
+  // Wasserfall
+  let waterfall=null;
+  if(role.kennzahlen.indexOf("umsatz_eur")>=0&&role.kennzahlen.indexOf("kosten_eur")>=0&&ebene<=2&&m.umsatz_eur){
+    const ka={};F.costs.forEach(c=>{if(filt.ebene_2&&c.ks!==filt.ebene_2)return;const fr=costFrac(c.mon);if(fr>0)ka[c.ka]=(ka[c.ka]||0)+c.be*fr;});
+    waterfall={umsatz:m.umsatz_eur,kostenarten:ka};
+  }
+  return {rolle:state.role,pfad:state.pfad,ebene,kann_tiefer:ebene<maxe,
+    titel:(state.pfad.length?state.pfad[state.pfad.length-1]:"Gesamt"),
+    kennzahlen:role.kennzahlen.filter(k=>KPIS[k]),kacheln,kinder,kinder_names,
+    kind_ebene:"ebene_"+(ebene+1),monat,waterfall,produkte,taeglich_umsatz,
+    wetter:{std,ort:std&&ORTE[std]?ORTE[std].ort:null,kennzahlen:wkz,taeglich:wt}};
+}
+let CUR=null;const node=()=>CUR;
 
 // ---------- layout helper ----------
 function baseLayout(title,sub,h){
@@ -535,7 +644,7 @@ function renderWeatherPanel(){
     salesWeather(document.getElementById("weather"),n.taeglich_umsatz,n.wetter.taeglich,n.wetter.std);
   }else{
     if(sec)sec.textContent="Wetter (Kontext)";
-    const w=DATA.nodes[state.role+"/_"].wetter;
+    const saveP=state.pfad;state.pfad=[];const root=computeNode();state.pfad=saveP;const w=root.wetter;
     const kz=w.kennzahlen.map(k=>`${k.name} <b>${fmt(k.wert,k.name==="Ø Temperatur"?"temperatur_c":k.name==="Niederschlag"?"niederschlag_mm":"x")}</b>`).join(" · ");
     document.getElementById("wthrnote").innerHTML=`Über alle Märkte gemittelt · ${kz} · zum Abgleich mit Umsatz und Kundenzahl (z.&nbsp;B. Regentage gegen Absatz).`;
     weather(document.getElementById("weather"),w);
@@ -551,11 +660,43 @@ function renderTable(){
   document.getElementById("table").innerHTML=`<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function render(){
+  CUR=computeNode();
   renderCrumbs();renderHead();renderKPIs();
   renderSplit();renderResult();renderProdukte();renderWeatherPanel();renderDrill();renderTable();
 }
 
 // ---------- init ----------
+
+const MON_DE={"01":"Jänner","02":"Februar","03":"März","04":"April","05":"Mai","06":"Juni",
+  "07":"Juli","08":"August","09":"September","10":"Oktober","11":"November","12":"Dezember"};
+function fmtDE(ds){const[y,m,d]=ds.split("-");return d+"."+m+"."+y;}
+function monEnd(mo){const y=+mo.slice(0,4),m=+mo.slice(5,7);return mo+"-"+String(daysInMonth(y,m)).padStart(2,"0");}
+function setRange(from,to,rerender){
+  state.from=from<F.dmin?F.dmin:from; state.to=to>F.dmax?F.dmax:to;
+  if(state.to<state.from)state.to=state.from;
+  document.getElementById("dfrom").value=state.from;
+  document.getElementById("dto").value=state.to;
+  markPreset();
+  document.getElementById("rlabel").textContent=fmtDE(state.from)+" – "+fmtDE(state.to);
+  if(rerender!==false)render();
+}
+function markPreset(){
+  const full=(state.from===F.dmin&&state.to===F.dmax);
+  document.querySelectorAll("#presets button").forEach(b=>{
+    const on=(b.dataset.k==="all"&&full)||(b.dataset.k!=="all"&&b.dataset.f===state.from&&b.dataset.t===state.to);
+    b.className=on?"on":"";});
+}
+function initDates(){
+  const df=document.getElementById("dfrom"),dt=document.getElementById("dto");
+  df.min=dt.min=F.dmin; df.max=dt.max=F.dmax;
+  df.onchange=()=>setRange(df.value,state.to); dt.onchange=()=>setRange(state.from,dt.value);
+  const pr=document.getElementById("presets");
+  let h='<button data-k="all" onclick="setRange(F.dmin,F.dmax)">Gesamt</button>';
+  monthsIn(F.dmin,F.dmax).forEach(mo=>{const f=mo+"-01",t=monEnd(mo);
+    h+=`<button data-k="${mo}" data-f="${f}" data-t="${t}" onclick="setRange('${f}','${t}')">${MON_DE[mo.slice(5,7)]}</button>`;});
+  pr.innerHTML=h;
+  setRange(F.dmin,F.dmax,false);
+}
 function initRoles(){
   const sel=document.getElementById("role");
   sel.innerHTML=Object.keys(ROLLES).map(k=>`<option value="${k}">${ROLLES[k].beschreibung}</option>`).join("");
@@ -568,8 +709,8 @@ document.getElementById("modal").onclick=e=>{if(e.target.id==="modal")e.target.c
 document.getElementById("themebtn").onclick=()=>{const r=document.documentElement;
   const cur=r.getAttribute("data-theme");const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
   r.setAttribute("data-theme",dark?"light":"dark");render();};
-initRoles();render();  // Text sofort; Diagramme sobald Plotly geladen ist
-window.goto=goto;window.drill=drill;window.setProd=setProd;
+initDates();initRoles();render();  // Text sofort; Diagramme sobald Plotly geladen ist
+window.goto=goto;window.drill=drill;window.setProd=setProd;window.setRange=setRange;
 (function loadPlotly(){
   var srcs=["https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js",
             "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"];
