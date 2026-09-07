@@ -9,14 +9,14 @@ import pandas as pd
 
 from cockpit.aggregate import ampel as ampel_farbe
 from cockpit.aggregate import sicht, verdichte
-from cockpit.config import lade_hierarchie, lade_kpis, lade_mapping, lade_rollen
+from cockpit.config import KONFIG_DIR, lade_hierarchie, lade_kpis, lade_mapping, lade_rollen
 from cockpit.ingest.excel import excel_zu_fakten
-from cockpit.ingest.weather import WETTER_KNOTEN, csv_zu_fakten
+from cockpit.ingest.weather import csv_zu_fakten
 from cockpit.model import EBENEN, pruefe
 from cockpit.store import Store
 
 BEISPIEL = Path(__file__).resolve().parent.parent / "examples" / "limonadenstaende.xlsx"
-BEISPIEL_WETTER = Path(__file__).resolve().parent.parent / "examples" / "wetter_wien.csv"
+BEISPIEL_WETTER = Path(__file__).resolve().parent.parent / "examples" / "wetter.csv"
 
 
 def konfig() -> tuple[dict, dict, dict]:
@@ -101,19 +101,38 @@ def naechste_knoten(fakten: pd.DataFrame, kpis: dict, rolle: dict,
     return verdichte(fakten, kpis, kind_ebene, _filter(rolle, pfad), nach_monat=False)
 
 
-def wetter_taeglich(fakten: pd.DataFrame) -> pd.DataFrame:
-    """Tageswerte des Wetters (Temperatur, Niederschlag) als breite Tabelle –
-    Grundlage des Wetter-Panels. Leer, wenn keine Wetterdaten geladen sind."""
-    w = fakten[fakten["ebene_2"] == WETTER_KNOTEN]
+WETTER_KZ = ["temperatur_c", "niederschlag_mm"]
+
+
+def standort_orte() -> dict:
+    """Standort -> Ort/Koordinaten aus config/standorte.yaml (für Panel-Beschriftung)."""
+    import yaml
+    p = KONFIG_DIR / "standorte.yaml"
+    if not p.exists():
+        return {}
+    return (yaml.safe_load(open(p, encoding="utf-8")) or {}).get("standorte", {})
+
+
+def wetter_taeglich(fakten: pd.DataFrame, standort: str | None = None) -> pd.DataFrame:
+    """Tageswerte des Wetters (Temperatur, Niederschlag) als breite Tabelle.
+
+    standort=None mittelt über alle Märkte (Temperatur) bzw. mittelt den
+    Niederschlag – für die Übersicht. Ein Standortname filtert auf dessen Wetter
+    – für den Drill-Down in einen Markt. Leer, wenn keine Wetterdaten geladen sind.
+    """
+    w = fakten[fakten["kennzahl_id"].isin(WETTER_KZ)]
+    if standort is not None:
+        w = w[w["ebene_2"] == standort]
     if w.empty:
         return pd.DataFrame(columns=["datum", "temperatur_c", "niederschlag_mm"])
+    # je Tag über die Märkte zusammenfassen (Mittel – bei einem Markt unverändert)
     breit = w.pivot_table(index="datum", columns="kennzahl_id", values="wert", aggfunc="mean")
     return breit.reset_index().sort_values("datum")
 
 
-def wetter_kennzahlen(fakten: pd.DataFrame, kpis: dict) -> list[dict]:
+def wetter_kennzahlen(fakten: pd.DataFrame, kpis: dict, standort: str | None = None) -> list[dict]:
     """Kompakte Wetter-Kennzahlen des Zeitraums (Ø Temperatur, Niederschlag gesamt)."""
-    d = wetter_taeglich(fakten)
+    d = wetter_taeglich(fakten, standort)
     if d.empty:
         return []
     return [
@@ -128,4 +147,4 @@ def wetter_kennzahlen(fakten: pd.DataFrame, kpis: dict) -> list[dict]:
 
 __all__ = ["EBENEN", "konfig", "store_mit_beispiel", "importiere", "kachel_werte",
            "ebenen_namen", "naechste_knoten", "sicht", "verdichte",
-           "wetter_taeglich", "wetter_kennzahlen"]
+           "wetter_taeglich", "wetter_kennzahlen", "standort_orte"]

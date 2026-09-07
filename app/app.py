@@ -161,11 +161,15 @@ if kacheln:
 else:
     st.info("Für diesen Knoten liegen keine Kennzahlen vor.")
 
-# Wetter-Kontext (stadtweit, in jeder Sicht gleich) als kompakte Zeile
-wetter_kz = service.wetter_kennzahlen(fakten, kpis)
+# Wetter-Kontext: je Markt im Drill-Down, sonst über alle Märkte gemittelt
+_std = _filter(rolle, pfad).get("ebene_2")
+_orte = service.standort_orte()
+_ort_label = f" ({_orte[_std]['ort']})" if _std in _orte else ""
+wetter_kz = service.wetter_kennzahlen(fakten, kpis, _std)
 if wetter_kz:
     teile = " · ".join(f"{w['name']} {theme.zahl(w['wert'], w['einheit'])}" for w in wetter_kz)
-    st.caption(f"🌤️ Wetter im Zeitraum (Stadtwetter): {teile}")
+    _wo = f"Markt {_std}{_ort_label}" if _std else "alle Märkte gemittelt"
+    st.caption(f"🌤️ Wetter im Zeitraum ({_wo}): {teile}")
 
 st.write("")
 
@@ -222,14 +226,19 @@ if {"umsatz_eur", "kosten_eur"} <= set(rolle["kennzahlen"]):
             use_container_width=True, config=PLOT)
 
 # ----------------------------------------------------------------- Wetter-Panel
-wetter = service.wetter_taeglich(fakten)
+wetter = service.wetter_taeglich(fakten, _std)
 if not wetter.empty:
     st.markdown("### Wetter (Kontext)")
-    st.caption("Stadtweit, in jeder Sicht gleich – zum Abgleich mit Umsatz und Kundenzahl "
-               "(z. B. Regentage gegen Absatz).")
+    if _std:
+        st.caption(f"Wetter am Markt **{_std}{_ort_label}** – zum Abgleich mit dem "
+                   "Absatz dieses Standorts (z. B. Regentage gegen Umsatz).")
+        panel_unter = f"Markt {_std}{_ort_label} · Zeitraum der geladenen Daten"
+    else:
+        st.caption("Über alle Märkte gemittelt. Für das Wetter eines einzelnen Marktes "
+                   "in einen Standort hineinklicken – dort erscheint dessen eigenes Wetter.")
+        panel_unter = "alle Märkte gemittelt · Zeitraum der geladenen Daten"
     st.plotly_chart(
-        charts.wetter_panel(wetter, "Temperatur und Niederschlag je Tag",
-                            "Stadtwetter · Zeitraum der geladenen Daten"),
+        charts.wetter_panel(wetter, "Temperatur und Niederschlag je Tag", panel_unter),
         use_container_width=True, config=PLOT)
 
 # ----------------------------------------------------------------- Drill-Down-Knöpfe

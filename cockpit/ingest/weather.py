@@ -27,11 +27,13 @@ WETTER_KNOTEN = "Wetter"
 
 
 def _fakten(datum: pd.Series, temp: pd.Series, prec: pd.Series, ebene_1: str,
-            quelle: str) -> pd.DataFrame:
+            quelle: str, ebene_2=WETTER_KNOTEN) -> pd.DataFrame:
+    """ebene_2 ist der Wetter-Knoten: konstant "Wetter" (stadtweit) oder je Zeile
+    der Standortname, damit jeder Markt sein eigenes Wetter trägt."""
     geladen = datetime.now().replace(microsecond=0)
     basis = pd.DataFrame({
         "datum": pd.to_datetime(datum).dt.normalize(),
-        "ebene_1": ebene_1, "ebene_2": WETTER_KNOTEN, "ebene_3": None, "ebene_4": None,
+        "ebene_1": ebene_1, "ebene_2": ebene_2, "ebene_3": None, "ebene_4": None,
         "quelle": quelle, "geladen_am": geladen,
     })
     teile = []
@@ -54,8 +56,9 @@ def csv_zu_fakten(pfad: str | Path, ebene_1: str = "Limonadenstände",
     def num(s: str) -> float:
         return float(str(s).replace(",", "."))
     df = pd.DataFrame(zeilen)
+    ebene_2 = df["Standort"].astype(str).str.strip() if "Standort" in df.columns else WETTER_KNOTEN
     return _fakten(df["Datum"], df["Temperatur_C"].map(num), df["Niederschlag_mm"].map(num),
-                   ebene_1, quelle or pfad.name)
+                   ebene_1, quelle or pfad.name, ebene_2)
 
 
 def open_meteo_zu_fakten(lat: float, lon: float, start: str, end: str,
@@ -75,3 +78,20 @@ def open_meteo_zu_fakten(lat: float, lon: float, start: str, end: str,
         d = json.load(r)["daily"]
     return _fakten(pd.Series(d["time"]), pd.Series(d["temperature_2m_mean"]),
                    pd.Series(d["precipitation_sum"]), ebene_1, f"open-meteo:{lat},{lon}")
+
+
+def open_meteo_je_standort(standorte: dict, start: str, end: str,
+                           ebene_1: str = "Limonadenstände") -> pd.DataFrame:
+    """Holt für JEDEN Standort das Wetter an seiner Koordinate (Produktionsweg).
+
+    `standorte` ist config/standorte.yaml["standorte"]: {Name: {lat, lon, ort}}.
+    Das Ergebnis trägt ebene_2 = Standortname, sodass jeder Markt im Drill-Down
+    sein eigenes Wetter zeigt.
+    """
+    teile = []
+    for name, o in standorte.items():
+        f = open_meteo_zu_fakten(o["lat"], o["lon"], start, end, ebene_1)
+        f["ebene_2"] = name
+        f["quelle"] = f"open-meteo:{o.get('ort', name)}"
+        teile.append(f)
+    return pd.concat(teile, ignore_index=True)

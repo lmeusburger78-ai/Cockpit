@@ -1,0 +1,9 @@
+# Koordinaten je Standort – für den Wetter-Abruf (Open-Meteo) und die
+# Beschriftung des Wetter-Panels. So bekommt jeder Markt sein eigenes Wetter.
+# Für die Beispieldaten sind vier reale, deutlich unterschiedliche Wetterstationen
+# hinterlegt; im Echtbetrieb hier einfach die echten Standort-Koordinaten eintragen.
+standorte:
+  Hauptplatz:  {ort: Wien,      lat: 48.21, lon: 16.37}
+  Bahnhof:     {ort: Graz,      lat: 47.07, lon: 15.44}
+  Stadtpark:   {ort: Salzburg,  lat: 47.80, lon: 13.05}
+  Wochenmarkt: {ort: Linz,      lat: 48.31, lon: 14.29}

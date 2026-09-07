@@ -62,7 +62,7 @@ def test_wetter_panel(daten):
     import pandas as pd
 
     from cockpit.ingest.weather import csv_zu_fakten
-    wf = csv_zu_fakten(str(BEISPIEL.parent / "wetter_wien.csv"))
+    wf = csv_zu_fakten(str(BEISPIEL.parent / "wetter.csv"))
     alle = pd.concat([fakten, wf], ignore_index=True)
     d = service.wetter_taeglich(alle)
     assert len(d) == 92 and {"temperatur_c", "niederschlag_mm"} <= set(d.columns)

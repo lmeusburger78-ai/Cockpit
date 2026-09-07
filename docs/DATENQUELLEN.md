@@ -152,8 +152,10 @@ Niederschlag werden als Kontext-Kennzahlen ins Modell geladen und im Cockpit in
 einem eigenen Wetter-Panel gezeigt (Temperatur als Linie, Niederschlag als
 Balken) – in der Übersicht wie im Drill-Down. Der Live-Abruf läuft über
 Open-Meteo (kostenlos, ohne Schlüssel); für den Offlinebetrieb liegt eine
-Beispiel-Wetterdatei bei (`examples/wetter_wien.csv`). Wetter ist stadtweit und
-taucht deshalb nie als Standort in Ranking, Kuchen oder Ergebnis auf; es dient
+Beispiel-Wetterdatei bei (`examples/wetter.csv`). Jeder Markt hat sein eigenes Wetter (Koordinaten in
+`config/standorte.yaml`); im Drill-Down erscheint das Wetter des jeweiligen
+Standorts, in der Übersicht über die Märkte gemittelt. Wetter
+taucht nie als Standort in Ranking, Kuchen oder Ergebnis auf; es dient
 dem Abgleich mit Umsatz und Kundenzahl (z. B. Regentage gegen Absatz).
 
 Ein **Aktien-Feed** ist der nächste naheliegende Schritt – dieselbe Bauweise,
