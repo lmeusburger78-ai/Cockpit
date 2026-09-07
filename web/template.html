@@ -225,7 +225,9 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
 
     <div id="sec-drill"></div>
 
-    <details class="tbl"><summary>Tabelle &amp; Monatswerte dieses Knotens</summary>
+    <details class="tbl"><summary>Detail-Tabelle dieses Knotens (mit Wetter)</summary>
+      <div class="toggles" style="margin:8px 0 6px"><span class="tglabel">Auflösung</span>
+        <span class="tgroup" id="grantoggle"></span></div>
       <div class="tblwrap" id="table"></div>
     </details>
     </div>
@@ -291,6 +293,8 @@ function statusCol(a){return a==="gruen"?cssv("--gruen"):a==="gelb"?cssv("--gelb
 
 const deDec=s=>s.replace(/\B(?=(\d{3})+(?!\d))/g,".");
 function fmt(v,id){if(v==null||isNaN(v))return "–";const e=EINHEIT[id]||"";
+  if(id==="temperatur_c")return v.toFixed(1).replace(".",",")+" °C";
+  if(id==="niederschlag_mm")return Math.round(v).toLocaleString("de-DE")+" mm";
   if(e==="€")return deDec(Math.round(v).toString())+" €";
   if(e==="%")return v.toFixed(1).replace(".",",")+" %";
   if(e==="Stk"||e==="Bons")return deDec(Math.round(v).toString())+" "+e;
@@ -317,6 +321,10 @@ function ampelOf(kid,v){const a=AMPEL[kid];if(!a||v==null||isNaN(v))return null;
   if(a.dir==="kl")return v<=a.g?"gruen":(v<=a.y?"gelb":"rot");
   return v>=a.g?"gruen":(v>=a.y?"gelb":"rot");}
 const WT={0:"Mo",1:"Di",2:"Mi",3:"Do",4:"Fr",5:"Sa",6:"So"};
+function isoD(d){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);}
+function isoWeek(ds){const dt=new Date(ds+"T00:00:00");const t=new Date(dt);t.setDate(dt.getDate()+3-((dt.getDay()+6)%7));
+  const w1=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-w1)/86400000-3+((w1.getDay()+6)%7))/7);}
+function mondayOf(ds){const dt=new Date(ds+"T00:00:00");const day=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-day);return isoD(dt);}
 function wtag(ds){const d=new Date(ds+"T00:00:00");return WT[(d.getDay()+6)%7];}
 function monthsIn(from,to){const out=[];let y=+from.slice(0,4),m=+from.slice(5,7);
   const ey=+to.slice(0,4),em=+to.slice(5,7);
@@ -421,6 +429,28 @@ function computeNode(){
     kennzahlen:role.kennzahlen.filter(k=>KPIS[k]),kacheln,kinder,kinder_names,vergleich_label:vlabel,
     kind_ebene:"ebene_"+(ebene+1),monat,waterfall,produkte,taeglich_umsatz,
     wetter:{std,ort:std&&ORTE[std]?ORTE[std].ort:null,kennzahlen:wkz,taeglich:wt}};
+}
+function detailRows(gran){
+  const role=ROLLES[state.role],start=role.start_ebene,ebene=start+state.pfad.length;
+  const filt=filterOf(role,state.pfad),std=filt.ebene_2||null;
+  const rows=salesFilt(filt);
+  const key=d=>gran==="tag"?d:(gran==="woche"?mondayOf(d):d.slice(0,7));
+  const bm={};rows.forEach(r=>{const b=key(r.d);const o=bm[b]||(bm[b]={um:0,be:0,tx:0,wz:0,zf:0});
+    o.um+=r.um;o.be+=r.be;o.tx+=r.tx;o.wz+=r.wz;o.zf+=r.zf;});
+  const wrows=F.weather.filter(w=>w.d>=state.from&&w.d<=state.to&&(!std||w.s===std));
+  const wm={};wrows.forEach(w=>{const b=key(w.d);const o=wm[b]||(wm[b]={t:0,tn:0,ps:{}});
+    o.t+=w.tmean;o.tn++;o.ps[w.s]=(o.ps[w.s]||0)+w.prec;});
+  const keys=[...new Set([...Object.keys(bm),...Object.keys(wm)])].sort();
+  return keys.map(b=>{const o=bm[b]||{um:0,be:0,tx:0,wz:0,zf:0},w=wm[b];
+    let label;if(gran==="tag")label=fmtDE(b)+" ("+WT[(new Date(b+"T00:00:00").getDay()+6)%7]+")";
+      else if(gran==="woche")label="KW "+isoWeek(b)+" (ab "+fmtDE(b)+")";else label=MON_DE[b.slice(5,7)]+" "+b.slice(0,4);
+    const rec={label,umsatz_eur:o.um,becher:o.be,transaktionen:o.tx,
+      wartezeit_min:o.tx?o.wz/o.tx:null,zufriedenheit:o.tx?o.zf/o.tx:null,
+      temperatur_c:w?w.t/w.tn:null,
+      niederschlag_mm:w?(Object.values(w.ps).reduce((a,x)=>a+x,0)/Object.keys(w.ps).length):null};
+    if(gran==="monat"&&ebene<=2){let kos=0;F.costs.forEach(c=>{if(filt.ebene_2&&c.ks!==filt.ebene_2)return;if(c.mon===b)kos+=c.be;});
+      rec.ergebnis_eur=o.um-kos;rec.umsatzrendite_pct=o.um?(o.um-kos)/o.um*100:null;}
+    return rec;});
 }
 let CUR=null;const node=()=>CUR;
 
@@ -560,8 +590,9 @@ function produktMengen(el,prod){
   lay.margin={l:150,r:80,t:70,b:48};lay.showlegend=false;
   lay.xaxis.title={text:einh,font:{size:12,color:cssv("--ink-2")}};
   lay.xaxis.rangemode="tozero";lay.yaxis.automargin=true;
+  const PROD_COL=["#1baf7a","#4a3aa7","#eda100","#e34948","#2a78d6","#eb6834","#e87ba4","#008300"];
   const tr={type:"bar",orientation:"h",x:d.map(r=>r.v),y:d.map(r=>r.produkt),
-    marker:{color:isU?SERIES[0]:SERIES[2]},
+    marker:{color:d.map((r,i)=>PROD_COL[i%PROD_COL.length])},
     text:d.map(r=>isU?fmtShort(r.v,"umsatz_eur"):Math.round(r.v).toLocaleString("de-DE")+" Stk"),
     textposition:"outside",textfont:{color:cssv("--ink-2"),size:12},cliponaxis:false,
     customdata:d.map(r=>isU?(Math.round(r.vBecher).toLocaleString("de-DE")+" Becher"):fmtShort(r.vUmsatz,"umsatz_eur")),
@@ -818,14 +849,25 @@ function renderWeatherPanel(){
     weather(document.getElementById("weather"),w);
   }
 }
+function setGran(g){state.gran=g;renderTable();}
 function renderTable(){
-  const n=node();if(!n.monat.length){document.getElementById("table").innerHTML="";return;}
-  const kz=n.kennzahlen.filter(k=>n.monat.some(r=>r[k]!=null));
-  const head=["Ebene","Monat",...kz.map(k=>KPIS[k].name)];
-  const rows=n.monat.map(r=>{const lab=r.ebene_4||r.ebene_3||r.ebene_2||r.ebene_1;
-    return `<tr><td>${lab}</td><td class="mono">${r.periode||""}</td>`+
-      kz.map(k=>`<td class="mono">${r[k]!=null?fmt(r[k],k):"–"}</td>`).join("")+`</tr>`;}).join("");
-  document.getElementById("table").innerHTML=`<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>`;
+  const gran=state.gran||"monat";
+  const tg=document.getElementById("grantoggle");
+  if(tg)tg.innerHTML=[["monat","Monatlich"],["woche","Wöchentlich"],["tag","Täglich"]]
+    .map(([k,l])=>`<button class="${gran===k?"on":""}" onclick="setGran('${k}')">${l}</button>`).join("");
+  const data=detailRows(gran);const el=document.getElementById("table");
+  if(!data.length){el.innerHTML="";return;}
+  // Spalten je Auflösung (Ergebnis/Rendite nur monatlich, da Kosten monatlich)
+  const cols=gran==="monat"
+    ? [["umsatz_eur","Umsatz"],["ergebnis_eur","Ergebnis"],["umsatzrendite_pct","Umsatzrendite"],
+       ["wartezeit_min","Ø Wartezeit"],["zufriedenheit","Ø Zufriedenheit"],["temperatur_c","Ø Temperatur"],["niederschlag_mm","Niederschlag"]]
+    : [["umsatz_eur","Umsatz"],["becher","Becher"],["wartezeit_min","Ø Wartezeit"],
+       ["zufriedenheit","Ø Zufriedenheit"],["temperatur_c","Ø Temperatur"],["niederschlag_mm","Niederschlag"]];
+  const usable=cols.filter(([k])=>data.some(r=>r[k]!=null));
+  const head=["Zeit",...usable.map(c=>c[1])];
+  const body=data.map(r=>`<tr><td>${r.label}</td>`+
+    usable.map(([k])=>`<td class="mono">${r[k]!=null?fmt(r[k],k):"–"}</td>`).join("")+`</tr>`).join("");
+  el.innerHTML=`<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
 function render(){
   CUR=computeNode();
@@ -931,7 +973,7 @@ document.getElementById("themebtn").onclick=()=>{const r=document.documentElemen
   r.setAttribute("data-theme",dark?"light":"dark");render();};
 initDates();initRoles();render();
 document.getElementById("xlsxfile").addEventListener("change",e=>{if(e.target.files[0])importExcel(e.target.files[0]);});  // Text sofort; Diagramme sobald Plotly geladen ist
-window.goto=goto;window.drill=drill;window.setProd=setProd;window.setRange=setRange;window.setMode=setMode;window.setCmp=setCmp;window.toggleSel=toggleSel;window.cmpPreset=cmpPreset;
+window.goto=goto;window.drill=drill;window.setProd=setProd;window.setGran=setGran;window.setRange=setRange;window.setMode=setMode;window.setCmp=setCmp;window.toggleSel=toggleSel;window.cmpPreset=cmpPreset;
 (function loadPlotly(){
   var srcs=["https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js",
             "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"];
