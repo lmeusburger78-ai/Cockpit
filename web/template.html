@@ -324,8 +324,7 @@ function cmpFmt(v,metric){
 }
 function splitCandidates(kinder){return SPLIT_ORDER.filter(([k])=>KPIS[k]&&kinder.some(r=>r[k]!=null));}
 // Kuchen nur bei additiven, nicht-negativen Werten sinnvoll (sonst nur Ranking)
-function pieMoeglich(metric,kinder){return PIE_OK.has(metric)
-  &&kinder.every(r=>r[metric]==null||r[metric]>=0)&&kinder.some(r=>r[metric]>0);}
+function pieMoeglich(metric,kinder){return PIE_OK.has(metric)&&kinder.some(r=>r[metric]>0);}
 // Farbzuordnung der Kinder des aktuellen Knotens (konsistent zu Ranking/Kuchen) – auch im Vergleich nutzbar
 function knotenFarben(){const n=node();if(!n||!n.kinder||!n.kinder.length)return {};
   const cands=splitCandidates(n.kinder);const met=cands.some(([k])=>k===state.splitMetric)?state.splitMetric:(cands[0]?cands[0][0]:"umsatz_eur");
@@ -517,9 +516,8 @@ function plReady(el){if(typeof Plotly==="undefined"){el.innerHTML='<div style="p
 function ranking(el,kinder,kid,kdef,kindEbene){
   if(!plReady(el))return;
   const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>a[kid]-b[kid]);
-  const hasA="ampel" in kdef;
   const vals=rows.map(r=>r[kid]);
-  const cols=rows.map(r=>hasA?statusCol(r[kid+"_ampel"]):farbeFuer(r[kindEbene]));
+  const cols=rows.map((r,i)=>farbeFuer(r[kindEbene],i));  // feste Entitätsfarbe (auch bei Gewinn/Verlust)
   const lay=baseLayout(`${kdef.name} nach ${EBN[node().ebene+1]||"Knoten"}`,"größter Wert oben · Klick führt tiefer",
      Math.max(470,80+58*rows.length));
   lay.margin={l:130,r:70,t:70,b:54};
@@ -535,28 +533,32 @@ function ranking(el,kinder,kid,kdef,kindEbene){
 function pie(el,kinder,kid,kdef){
   if(!plReady(el))return;
   const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>b[kid]-a[kid]);
-  const labels=rows.map(r=>r[node().kind_ebene]),vals=rows.map(r=>r[kid]);
-  const sum=vals.reduce((a,b)=>a+b,0);
+  const pos=rows.filter(r=>r[kid]>0), neg=rows.filter(r=>r[kid]<0);   // Verluste können kein Segment sein
+  const labels=pos.map(r=>r[node().kind_ebene]),vals=pos.map(r=>r[kid]);
+  const netto=rows.reduce((a,r)=>a+r[kid],0);
   const cols=labels.map(l=>farbeFuer(l));
-  const lay=baseLayout(`${kdef.name}-Anteile je ${EBN[node().ebene+1]||"Knoten"}`,
-     node().kann_tiefer?"Klick auf ein Segment führt tiefer":"Anteil am Ganzen",470);
+  const sub=neg.length?"Anteile der positiven Ergebnisse · Verluste separat"
+    :(node().kann_tiefer?"Klick auf ein Segment führt tiefer":"Anteil am Ganzen");
+  const lay=baseLayout(`${kdef.name}-Anteile je ${EBN[node().ebene+1]||"Knoten"}`,sub,470);
   lay.margin={l:6,r:6,t:66,b:10};lay.showlegend=false;
-  lay.annotations=[{text:`<b>${fmtShort(sum,kid)}</b><br><span style="font-size:11px">${kdef.name} gesamt</span>`,
+  lay.annotations=[{text:`<b>${fmtShort(netto,kid)}</b><br><span style="font-size:11px">${kdef.name} gesamt</span>`,
     showarrow:false,font:{size:15,color:cssv("--ink"),family:"IBM Plex Sans"},x:.5,y:.5,xanchor:"center",yanchor:"middle"}];
   const tr={type:"pie",hole:.56,sort:false,direction:"clockwise",labels,values:vals,
     marker:{colors:cols,line:{color:cssv("--surface"),width:2}},
     textinfo:"percent",textposition:"inside",insidetextfont:{color:"#fff",size:12.5},
-    hovertemplate:"%{label}<br>%{value:,.0f} €<br>Anteil: %{percent}<extra></extra>"};
+    hovertemplate:"%{label}<br>%{value:,.0f} "+(EINHEIT[kid]||"")+"<br>Anteil: %{percent}<extra></extra>"};
   Plotly.newPlot(el,[tr],lay,CFG);
   if(node().kann_tiefer)el.on("plotly_click",ev=>drill(ev.points[0].label));
 }
 function pieLegend(el,kinder,kid){
   const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>b[kid]-a[kid]);
-  const sum=rows.reduce((a,r)=>a+r[kid],0),tief=node().kann_tiefer;
-  el.innerHTML=rows.map((r,i)=>{const nm=r[node().kind_ebene],pct=(r[kid]/sum*100).toFixed(1).replace(".",",");
+  const posSum=rows.filter(r=>r[kid]>0).reduce((a,r)=>a+r[kid],0),tief=node().kann_tiefer;
+  el.innerHTML=rows.map((r,i)=>{const nm=r[node().kind_ebene];
+    const vl=r[kid]>0?`${fmtShort(r[kid],kid)} · ${(r[kid]/posSum*100).toFixed(1).replace(".",",")}%`
+      :`<span style="color:var(--rot)">${fmtShort(r[kid],kid)} · Verlust</span>`;
     return `<div class="pileg" ${tief?`onclick="drill('${String(nm).replace(/'/g,"\'")}')"`:""}>
       <span class="sw" style="background:${farbeFuer(nm,i)}"></span>
-      <div><div class="nm">${nm}</div><div class="vl">${fmtShort(r[kid],kid)} · ${pct}%</div></div>
+      <div><div class="nm">${nm}</div><div class="vl">${vl}</div></div>
       ${tief?'<span class="ar">↳</span>':''}</div>`;}).join("");
 }
 function waterfall(el,wf,titel){

@@ -16,11 +16,11 @@ standleitung_bahnhof:
   start_ebene: 2
   max_ebene: 4
   filter: {ebene_2: Bahnhof}
-  kennzahlen: [umsatz_eur, becher, bonwert_eur, wartezeit_min, zufriedenheit, kosten_eur]
+  kennzahlen: [umsatz_eur, becher, wartezeit_min, zufriedenheit, kosten_eur]
 
 controlling:
   beschreibung: Sieht alles auf allen Ebenen
   start_ebene: 1
   max_ebene: 4
   filter: {}
-  kennzahlen: [umsatz_eur, kosten_eur, ergebnis_eur, umsatzrendite_pct, transaktionen, becher, bonwert_eur, wartezeit_min, zufriedenheit]
+  kennzahlen: [umsatz_eur, kosten_eur, ergebnis_eur, umsatzrendite_pct, transaktionen, becher, wartezeit_min, zufriedenheit]
