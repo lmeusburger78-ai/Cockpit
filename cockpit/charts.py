@@ -233,9 +233,12 @@ def produkt_mengen(df, titel: str, untertitel: str = "", kennzahl: str = "menge"
     lay = theme.layout(titel, untertitel, hoehe=max(260, 60 + 46 * len(d)))
     lay["xaxis"]["title"] = "Umsatz (€)" if ist_umsatz else "Verkaufte Becher (Stk)"
     lay["margin"]["l"] = 150
+    lay["margin"]["r"] = 96
     lay["showlegend"] = False
     fig.update_layout(lay)
-    fig.update_xaxes(rangemode="tozero")
+    # Headroom, damit die Zahl am Balkenende (z. B. "9.162 Stk") voll sichtbar bleibt
+    max_v = float(d["_v"].max()) if len(d) else 0.0
+    fig.update_xaxes(range=[0, max_v * 1.18 or 1])
     return fig
 
 

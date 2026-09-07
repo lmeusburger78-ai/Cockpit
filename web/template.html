@@ -289,6 +289,18 @@ function farbMap(kinder,kid,kindeb){
   return m;
 }
 function farbeFuer(nm,i){return FARB[nm]||SERIES[(i||0)%SERIES.length];}
+// Kennzahlen, die als Aufteilung (Ranking/Kuchen) sinnvoll wählbar sind – in Anzeigereihenfolge
+const SPLIT_ORDER=[["umsatz_eur","Umsatz"],["ergebnis_eur","Gewinn"],["kosten_eur","Ausgaben"],
+  ["becher","Menge"],["transaktionen","Bons"]];
+const PIE_OK=new Set(["umsatz_eur","ergebnis_eur","kosten_eur","becher","transaktionen"]);
+function splitCandidates(kinder){return SPLIT_ORDER.filter(([k])=>KPIS[k]&&kinder.some(r=>r[k]!=null));}
+// Kuchen nur bei additiven, nicht-negativen Werten sinnvoll (sonst nur Ranking)
+function pieMoeglich(metric,kinder){return PIE_OK.has(metric)
+  &&kinder.every(r=>r[metric]==null||r[metric]>=0)&&kinder.some(r=>r[metric]>0);}
+// Farbzuordnung der Kinder des aktuellen Knotens (konsistent zu Ranking/Kuchen) – auch im Vergleich nutzbar
+function knotenFarben(){const n=node();if(!n||!n.kinder||!n.kinder.length)return {};
+  const cands=splitCandidates(n.kinder);const met=cands.some(([k])=>k===state.splitMetric)?state.splitMetric:(cands[0]?cands[0][0]:"umsatz_eur");
+  return farbMap(n.kinder,met,n.kind_ebene);}
 function statusCol(a){return a==="gruen"?cssv("--gruen"):a==="gelb"?cssv("--gelb"):a==="rot"?cssv("--rot"):cssv("--muted");}
 
 const deDec=s=>s.replace(/\B(?=(\d{3})+(?!\d))/g,".");
@@ -312,7 +324,7 @@ const GLOSS={umsatz_eur:"Summe aller Verkäufe (Brutto-Umsatz) im Zeitraum.",
   becher:"Verkaufte Menge in Bechern.",transaktionen:"Anzahl der Bons (Verkäufe).",
   bonwert_eur:"Durchschnittlicher Umsatz je Bon (Umsatz ÷ Transaktionen).",
   kosten_eur:"Summe aller Kosten im Zeitraum."};
-let state={role:null,pfad:[],from:null,to:null};
+let state={role:null,pfad:[],from:null,to:null,splitMetric:"umsatz_eur"};
 const KPIS=F.kpis,ROLLES=F.rollen,EBN=F.ebenen,ORTE=F.orte,EBENE1=F.ebene1;
 state.from=F.dmin; state.to=F.dmax;
 const AMPEL={wartezeit_min:{dir:"kl",g:5.5,y:6.5},zufriedenheit:{dir:"gr",g:3.8,y:3.4},
@@ -587,9 +599,12 @@ function produktMengen(el,prod){
   const szlbl=sz==="klein"?"klein 0,2 l":sz==="gross"?"groß 0,4 l":"alle Größen";
   const lay=baseLayout("Produkte je "+(isU?"Umsatz":"verkaufter Menge"),
      szlbl+" · absteigend · "+(isU?"Menge":"Umsatz")+" im Tooltip",Math.max(300,70+52*d.length));
-  lay.margin={l:150,r:80,t:70,b:48};lay.showlegend=false;
+  lay.margin={l:150,r:96,t:70,b:48};lay.showlegend=false;
   lay.xaxis.title={text:einh,font:{size:12,color:cssv("--ink-2")}};
-  lay.xaxis.rangemode="tozero";lay.yaxis.automargin=true;
+  lay.xaxis.automargin=true;lay.yaxis.automargin=true;
+  // Headroom, damit die Zahl (z. B. "9.162 Stk") rechts am Balkenende voll sichtbar bleibt
+  const maxV=d.length?Math.max(...d.map(r=>r.v)):0;
+  lay.xaxis.range=[0,maxV*1.18||1];
   const PROD_FARBE="#6a4bd8";  // eigene, eindeutige Produktfarbe (kein Standort belegt sie)
   const tr={type:"bar",orientation:"h",x:d.map(r=>r.v),y:d.map(r=>r.produkt),
     marker:{color:PROD_FARBE},
@@ -690,7 +705,8 @@ function renderCompare(){
   const metricOpts=role.kennzahlen.filter(k=>KPIS[k]).map(k=>`<option value="${k}" ${k===c.metric?"selected":""}>${KPIS[k].name}</option>`).join("");
   const presets=(who)=>{let h='<button data-k="all" onclick="cmpPreset(\''+who+'\',\'all\')">Gesamt</button>';
     monthsIn(F.dmin,F.dmax).forEach(mo=>{h+=`<button onclick="cmpPreset('${who}','${mo}')">${MON_DE[mo.slice(5,7)]}</button>`;});return h;};
-  const chk=names.map((nm,i)=>`<label><input type="checkbox" ${c.sel.has(nm)?"checked":""} onchange="toggleSel('${String(nm).replace(/'/g,"\\'")}',this.checked)"><span class="sw" style="background:${SERIES[i%SERIES.length]}"></span>${nm}</label>`).join("");
+  const cfarb=knotenFarben();  // gleiche Farben wie im Ranking/Kuchen des Knotens
+  const chk=names.map((nm,i)=>`<label><input type="checkbox" ${c.sel.has(nm)?"checked":""} onchange="toggleSel('${String(nm).replace(/'/g,"\\'")}',this.checked)"><span class="sw" style="background:${cfarb[nm]||SERIES[i%SERIES.length]}"></span>${nm}</label>`).join("");
   el.innerHTML=`
     <h2 class="node" style="margin-top:0">Vergleich · ${kENose}</h2>
     <div class="subline">Zwei Zeiträume gegenüberstellen und ${kindName} manuell auswählen.</div>
@@ -798,16 +814,23 @@ function renderSplit(){
     if(n.wetter.std&&n.taeglich_umsatz&&n.taeglich_umsatz.length){el.innerHTML="";return;}
     el.innerHTML=`<div class="sec-h">Verlauf</div><div class="card"><div id="trendplot" class="plot"></div></div>`;
     const kid=n.kennzahlen[0]||"umsatz_eur";trend(document.getElementById("trendplot"),n.monat,kid,KPIS[kid]);return;}
-  const leit=n.kennzahlen.find(k=>n.kinder.some(r=>r[k]!=null))||"umsatz_eur";
-  const pieKid=n.kinder.some(r=>r.umsatz_eur!=null)?"umsatz_eur":leit;
-  el.innerHTML=`<div class="sec-h">Aufteilung nach ${EBN[n.ebene+1]||"Knoten"}</div>
-    <div class="grid2"><div class="card"><div id="rankplot" class="plot"></div></div>
-    <div class="card"><div class="pierow"><div id="pieplot"></div><div id="pielegend" class="pielegend"></div></div></div></div>`;
-  FARB=farbMap(n.kinder,pieKid,n.kind_ebene);
-  ranking(document.getElementById("rankplot"),n.kinder,leit,KPIS[leit],n.kind_ebene);
-  pie(document.getElementById("pieplot"),n.kinder,pieKid,KPIS[pieKid]);
-  pieLegend(document.getElementById("pielegend"),n.kinder,pieKid);
+  const cands=splitCandidates(n.kinder);
+  if(!cands.some(([k])=>k===state.splitMetric))state.splitMetric=cands.length?cands[0][0]:"umsatz_eur";
+  const metric=state.splitMetric,pieOn=pieMoeglich(metric,n.kinder);
+  const reiter='<span class="tgroup">'+cands.map(([k,lbl])=>
+      `<button class="${k===metric?"on":""}" onclick="setSplitMetric('${k}')">${lbl}</button>`).join("")+'</span>';
+  el.innerHTML=`<div class="sec-h">Aufteilung nach ${EBN[n.ebene+1]||"Knoten"}</div>`
+    +`<div class="toggles"><span class="tglabel">Kennzahl</span>${reiter}</div>`
+    +(pieOn
+      ?`<div class="grid2"><div class="card"><div id="rankplot" class="plot"></div></div>
+        <div class="card"><div class="pierow"><div id="pieplot"></div><div id="pielegend" class="pielegend"></div></div></div></div>`
+      :`<div class="card"><div id="rankplot" class="plot"></div></div>`);
+  FARB=farbMap(n.kinder,metric,n.kind_ebene);
+  ranking(document.getElementById("rankplot"),n.kinder,metric,KPIS[metric],n.kind_ebene);
+  if(pieOn){pie(document.getElementById("pieplot"),n.kinder,metric,KPIS[metric]);
+    pieLegend(document.getElementById("pielegend"),n.kinder,metric);}
 }
+function setSplitMetric(k){state.splitMetric=k;renderSplit();}
 function renderResult(){
   const n=node(),el=document.getElementById("sec-result");
   if(n.waterfall&&Object.keys(n.waterfall.kostenarten).length){
