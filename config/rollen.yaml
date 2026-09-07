@@ -9,7 +9,7 @@ geschaeftsfuehrung:
   start_ebene: 1
   max_ebene: 2
   filter: {}
-  kennzahlen: [umsatz_eur, ergebnis_eur, umsatzrendite_pct, zufriedenheit]
+  kennzahlen: [umsatz_eur, ergebnis_eur, umsatzrendite_pct, wartezeit_min, zufriedenheit]
 
 standleitung_bahnhof:
   beschreibung: Sieht nur den eigenen Stand, dafür bis auf Produkt und Größe
