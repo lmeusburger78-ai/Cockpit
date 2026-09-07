@@ -14,3 +14,6 @@ __pycache__/
 
 # generierte Website (aus web/template.html + Daten via scripts/export_web.py)
 web/cockpit.html
+
+# GitHub-Pages-Build
+public/

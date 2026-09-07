@@ -1,0 +1,52 @@
+name: Deploy Cockpit to GitHub Pages
+
+# Baut die statische Cockpit-Website und veroeffentlicht sie auf GitHub Pages.
+# Ergebnis-Adresse:  https://lmeusburger78-ai.github.io/Cockpit/
+#
+# Einmalig noetig: Repository -> Settings -> Pages -> "Build and deployment" ->
+# Source: "GitHub Actions" (der Schritt configure-pages unten aktiviert das i. d. R.
+# automatisch, falls dein Konto/Org das erlaubt).
+
+on:
+  push:
+    branches:
+      - main
+      - claude/process-monitoring-cockpit-urk5zt
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python scripts/export_web.py   # web/cockpit.html aus Daten erzeugen
+      - run: python scripts/build_pages.py   # -> public/index.html
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
