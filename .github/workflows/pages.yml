@@ -35,8 +35,6 @@ jobs:
       - run: python scripts/export_web.py   # web/cockpit.html aus Daten erzeugen
       - run: python scripts/build_pages.py   # -> public/index.html
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
