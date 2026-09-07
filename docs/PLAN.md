@@ -1,6 +1,6 @@
 # Prozess-Cockpit – Umsetzungsplan
 
-Stand: 2026-09-07 · Status: Phase 1 in Umsetzung (Beispieldatei liegt vor, Grundgerüst gebaut)
+Stand: 2026-09-07 · Status: Phase 2 in Umsetzung (Oberfläche mit Diagrammen läuft)
 
 Dieses Dokument beschreibt die empfohlene Architektur, die Schnittstellen, den
 Phasenplan und die offenen Fragen für ein Cockpit zur Überwachung unserer
@@ -173,6 +173,9 @@ Datenmodell (DuckDB/Parquet) dort direkt angebunden werden kann.
 * Ein Bundle wird **atomar** übernommen: entweder alle Teile sind gültig oder
   nichts wird geschrieben – damit das Cockpit nie einen halben Stand zeigt.
 
+> Praxisleitfaden zum wöchentlichen Excel-Upload und zur Anbindung externer
+> Quellen (Aktien, Wetter) mit Aufwandsschätzung: [DATENQUELLEN.md](DATENQUELLEN.md).
+
 ### 4.3 Aktienwerte
 
 Zwei Wege, beide münden in dieselbe Fakt-Tabelle (`kennzahl_id` = z. B.
@@ -297,7 +300,7 @@ Cockpit/
 |-------|--------|----------|----------------|
 | **0 – Klärung** | Offene Fragen (Abschnitt 8) beantworten, 2–3 echte Beispiel-Excel-Dateien, erster Kennzahlen-Katalog, Hierarchie, Rollenliste | Abgestimmtes `kpis.yaml`, `rollen.yaml`, `hierarchie.yaml` | 1 Workshop + 2–3 Tage |
 | **1 – Grundgerüst** ✅ | Repo-Struktur, Datenmodell, Excel-Import mit Mapping-Profil und Prüfbericht, DuckDB-Speicher, Verdichtungslogik, Rollen-Sicht, Tests, CI | Daten können geladen und per Skript verdichtet werden (siehe `scripts/demo_drilldown.py`, [Datenmodell](DATENMODELL.md)) | erledigt |
-| **2 – Cockpit MVP** | Streamlit-App: Login (lokal), Rollen-Sicht, Kacheln mit Ampeln, Drill-Down, Zeitvergleich, Upload-Seite | Erstes nutzbares Cockpit mit echten Daten für 2 Rollen | 1–2 Wochen |
+| **2 – Cockpit MVP** ✅ | Streamlit-App: Rollen-Sicht, KPI-Kacheln mit Ampeln und Vormonatsvergleich, Drill-Down per Klick, GuV-Wasserfall, Treemap, Trendverlauf, Upload mit Prüfbericht – alle Diagramme vollständig beschriftet (`app/app.py`) | Nutzbares Cockpit mit Beispieldaten für drei Rollen | erledigt (offen: Login/SSO) |
 | **3 – Weitere Schnittstellen** | Bundle-Import, Aktien-Feed + Aktien-Cockpit, OneDrive-Polling | Alle gewünschten Datenwege laufen | 1–2 Wochen |
 | **4 – Betrieb** | SSO (Entra ID), Hosting, Backups, Betriebs-Doku, Übergabe/Schulung | Produktivbetrieb | 1 Woche |
 

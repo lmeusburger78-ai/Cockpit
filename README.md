@@ -5,28 +5,32 @@ Cockpit zur Überwachung unserer Prozesse: Kennzahlen aus verschiedenen Uploads
 oben verdichtet, je Adressat passend angezeigt und lassen sich per Drill-Down
 bis auf die Einzeldaten aufschlüsseln.
 
-**Status:** Phase 1 (Grundgerüst) – Import, Datenmodell, Verdichtung und
-Rollen-Sicht laufen als Python-Bibliothek mit Tests. Die Oberfläche (Phase 2)
-folgt.
+**Status:** Phase 2 – die Streamlit-Oberfläche mit Plotly-Diagrammen läuft:
+Rollen-Auswahl, KPI-Kacheln mit Ampeln, Drill-Down per Klick, GuV-Wasserfall,
+Treemap und Trendverlauf, alle vollständig beschriftet. Import, Datenmodell und
+Verdichtung aus Phase 1 sind mit Tests hinterlegt.
 
 ## Dokumentation
 
 * [Umsetzungsplan, Architektur und offene Fragen](docs/PLAN.md)
 * [Datenmodell – erklärt am Beispiel Limonadenstände](docs/DATENMODELL.md)
+* [Datenquellen – Excel wöchentlich pflegen, externe Quellen (Aktien, Wetter) anbinden](docs/DATENQUELLEN.md)
 
 ## Schnellstart
 
 ```bash
 pip install -r requirements.txt
-python scripts/demo_drilldown.py     # Excel -> Modell -> DuckDB -> Drill-Down je Rolle
-python -m pytest                     # Tests gegen die Formelwerte der Beispiel-Excel
+streamlit run app/app.py             # das Cockpit im Browser öffnen
+python scripts/demo_drilldown.py     # Excel -> Modell -> DuckDB -> Drill-Down (Konsole)
+python -m pytest                     # Tests: Verdichtung + App-Rendering je Rolle
 ```
 
 ## Aufbau
 
 ```
 config/            Kennzahlen (kpis.yaml), Rollen (rollen.yaml), Hierarchie, Mapping-Profile
-cockpit/           Python-Paket: model, ingest/excel, store (DuckDB), aggregate
+cockpit/           Python-Paket: model, ingest/excel, store (DuckDB), aggregate, charts, service, theme
+app/               Streamlit-Oberfläche (app.py)
 examples/          Beispiel-Excel (fiktive Verkaufszahlen der Limonadenstände)
 scripts/           Demo-Skript
 tests/             pytest
