@@ -590,9 +590,9 @@ function produktMengen(el,prod){
   lay.margin={l:150,r:80,t:70,b:48};lay.showlegend=false;
   lay.xaxis.title={text:einh,font:{size:12,color:cssv("--ink-2")}};
   lay.xaxis.rangemode="tozero";lay.yaxis.automargin=true;
-  const PROD_COL=["#1baf7a","#4a3aa7","#eda100","#e34948","#2a78d6","#eb6834","#e87ba4","#008300"];
+  const PROD_FARBE="#6a4bd8";  // eigene, eindeutige Produktfarbe (kein Standort belegt sie)
   const tr={type:"bar",orientation:"h",x:d.map(r=>r.v),y:d.map(r=>r.produkt),
-    marker:{color:d.map((r,i)=>PROD_COL[i%PROD_COL.length])},
+    marker:{color:PROD_FARBE},
     text:d.map(r=>isU?fmtShort(r.v,"umsatz_eur"):Math.round(r.v).toLocaleString("de-DE")+" Stk"),
     textposition:"outside",textfont:{color:cssv("--ink-2"),size:12},cliponaxis:false,
     customdata:d.map(r=>isU?(Math.round(r.vBecher).toLocaleString("de-DE")+" Becher"):fmtShort(r.vUmsatz,"umsatz_eur")),
