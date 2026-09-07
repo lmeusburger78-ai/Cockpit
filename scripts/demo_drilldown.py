@@ -57,24 +57,24 @@ def main(pfad: str) -> None:
     titel("5) Sicht 'geschaeftsfuehrung' – Einstieg (Ebene 1, Gesamtzeitraum)")
     zeige(sicht(fakten, kpis, rollen, "geschaeftsfuehrung"))
 
-    titel("6) Drill-Down der Geschäftsführung: Klick auf 'Limonadenstände' -> Standorte")
-    zeige(sicht(fakten, kpis, rollen, "geschaeftsfuehrung", ("Limonadenstände",)))
+    titel("6) Drill-Down der Geschäftsführung: Klick auf den Standort 'Bahnhof'")
+    zeige(sicht(fakten, kpis, rollen, "geschaeftsfuehrung", ("Bahnhof",)))
 
     titel("7) Geschäftsführung darf NICHT tiefer (max_ebene 2)")
     try:
-        sicht(fakten, kpis, rollen, "geschaeftsfuehrung", ("Limonadenstände", "Bahnhof"))
+        sicht(fakten, kpis, rollen, "geschaeftsfuehrung", ("Bahnhof", "Orangensaft"))
     except PermissionError as e:
         print("Abgelehnt:", e)
 
     titel("8) Sicht 'standleitung_bahnhof' – Einstieg (nur der eigene Stand, je Monat)")
     zeige(sicht(fakten, kpis, rollen, "standleitung_bahnhof", nach_monat=True))
 
-    titel("9) Drill-Down der Standleitung: Bahnhof -> Produkte / Kostenarten")
-    zeige(sicht(fakten, kpis, rollen, "standleitung_bahnhof", ("Bahnhof",)))
+    titel("9) Drill-Down der Standleitung: Klick auf das Produkt 'Orangensaft'")
+    zeige(sicht(fakten, kpis, rollen, "standleitung_bahnhof", ("Orangensaft",)))
 
-    titel("10) ... und weiter: Bahnhof -> Orangensaft -> Größen")
+    titel("10) ... und weiter: Orangensaft -> Größen")
     zeige(sicht(fakten, kpis, rollen, "standleitung_bahnhof",
-                ("Bahnhof", "Orangensaft")))
+                ("Orangensaft", "groß 0,4 l")))
 
     titel("11) Unterste Ebene: Einzelfakten mit Quelle (rückverfolgbar bis zur Excel-Zeile)")
     einzel = fakten[(fakten.ebene_2 == "Bahnhof") & (fakten.ebene_3 == "Orangensaft")

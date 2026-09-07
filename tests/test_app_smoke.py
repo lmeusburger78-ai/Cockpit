@@ -37,15 +37,15 @@ def test_jede_rolle_rendert(rolle_key):
 
 def test_drilldown_geschaeftsfuehrung():
     # Einstieg -> Standort Bahnhof
-    at = _run({"geschaeftsfuehrung": ["Limonadenstände"]})
+    at = _run({"geschaeftsfuehrung": ["Bahnhof"]})
     assert not at.exception
 
 
 def test_drilldown_standleitung_tief():
-    at = _run({"standleitung_bahnhof": ["Bahnhof", "Orangensaft"]})
+    at = _run({"standleitung_bahnhof": ["Orangensaft", "groß 0,4 l"]})
     assert not at.exception
 
 
 def test_controlling_bis_unterste_ebene():
-    at = _run({"controlling": ["Limonadenstände", "Bahnhof", "Orangensaft"]})
+    at = _run({"controlling": ["Bahnhof", "Orangensaft", "groß 0,4 l"]})
     assert not at.exception

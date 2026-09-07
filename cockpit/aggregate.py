@@ -107,7 +107,7 @@ def sicht(fakten: pd.DataFrame, kpis: dict, rollen: dict, rolle: str,
         )
     filt = dict(r.get("filter") or {})
     for i, knoten in enumerate(pfad):
-        filt[f"ebene_{start + i}"] = knoten
+        filt[f"ebene_{start + 1 + i}"] = knoten
 
     breit = verdichte(fakten, kpis, ebene, filt, nach_monat)
     schluessel = EBENEN[:ebene] + (["periode"] if nach_monat else [])

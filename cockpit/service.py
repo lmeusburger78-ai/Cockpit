@@ -55,7 +55,7 @@ def kachel_werte(fakten: pd.DataFrame, kpis: dict, rolle: dict,
     ebene = start + len(pfad)
     filt = dict(rolle.get("filter") or {})
     for i, knoten in enumerate(pfad):
-        filt[f"ebene_{start + i}"] = knoten
+        filt[f"ebene_{start + 1 + i}"] = knoten
 
     gesamt = verdichte(fakten, kpis, ebene, filt, nach_monat=False)
     monatlich = verdichte(fakten, kpis, ebene, filt, nach_monat=True)
@@ -88,7 +88,7 @@ def _filter(rolle: dict, pfad: tuple[str, ...]) -> dict:
     start = int(rolle["start_ebene"])
     filt = dict(rolle.get("filter") or {})
     for i, knoten in enumerate(pfad):
-        filt[f"ebene_{start + i}"] = knoten
+        filt[f"ebene_{start + 1 + i}"] = knoten
     return filt
 
 

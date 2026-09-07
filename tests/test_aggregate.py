@@ -109,18 +109,27 @@ def test_ampel():
 
 def test_rollen_sicht_und_drilldown(fakten, kpis):
     rollen = lade_rollen()
+    # GF steigt auf Unternehmensebene ein (eine Zeile), ohne Kostendetails
     gf = sicht(fakten, kpis, rollen, "geschaeftsfuehrung")
     assert list(gf.columns[:1]) == ["ebene_1"] and len(gf) == 1
-    assert "kosten_eur" not in gf.columns              # GF sieht keine Kostendetails
+    assert "kosten_eur" not in gf.columns
 
-    standorte = sicht(fakten, kpis, rollen, "geschaeftsfuehrung", ("Limonadenstände",))
-    assert set(standorte["ebene_2"]) == {
-        "Hauptplatz", "Bahnhof", "Stadtpark", "Wochenmarkt", "Zentrale"}
+    # Drill-Down in einen Standort: genau dieser Knoten auf Ebene 2
+    bahnhof = sicht(fakten, kpis, rollen, "geschaeftsfuehrung", ("Bahnhof",))
+    assert len(bahnhof) == 1 and bahnhof["ebene_2"].iloc[0] == "Bahnhof"
+    assert bahnhof["umsatz_eur"].iloc[0] == pytest.approx(46189.2, abs=0.1)
 
+    # GF darf nicht tiefer als Ebene 2
     with pytest.raises(PermissionError):
-        sicht(fakten, kpis, rollen, "geschaeftsfuehrung", ("Limonadenstände", "Bahnhof"))
+        sicht(fakten, kpis, rollen, "geschaeftsfuehrung", ("Bahnhof", "Orangensaft"))
 
-    bahnhof = sicht(fakten, kpis, rollen, "standleitung_bahnhof")
-    assert set(bahnhof["ebene_2"]) == {"Bahnhof"}      # Filter greift serverseitig
-    produkte = sicht(fakten, kpis, rollen, "standleitung_bahnhof", ("Bahnhof",))
-    assert "Orangensaft" in set(produkte["ebene_3"])
+    # Standleitung sieht nur den eigenen Stand (Rollenfilter greift serverseitig)
+    stand = sicht(fakten, kpis, rollen, "standleitung_bahnhof")
+    assert set(stand["ebene_2"]) == {"Bahnhof"}
+    # Drill in ein Produkt: Filter bleibt auf Bahnhof, zusätzlich Produkt
+    orangen = sicht(fakten, kpis, rollen, "standleitung_bahnhof", ("Orangensaft",))
+    assert set(orangen["ebene_2"]) == {"Bahnhof"}
+    assert set(orangen["ebene_3"]) == {"Orangensaft"}
+    # eine Ebene tiefer: Größen des Produkts am Bahnhof
+    groessen = sicht(fakten, kpis, rollen, "standleitung_bahnhof", ("Orangensaft", "groß 0,4 l"))
+    assert set(groessen["ebene_4"]) == {"groß 0,4 l"}

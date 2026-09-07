@@ -40,7 +40,7 @@ def _filter(rolle: dict, pfad: tuple[str, ...]) -> dict:
     start = int(rolle["start_ebene"])
     filt = dict(rolle.get("filter") or {})
     for i, knoten in enumerate(pfad):
-        filt[f"ebene_{start + i}"] = knoten
+        filt[f"ebene_{start + 1 + i}"] = knoten
     return filt
 
 
@@ -125,7 +125,7 @@ def setze_pfad(neu: tuple[str, ...]):
 
 
 # Breadcrumb
-namen = ["Gesamt", *[f"{ebenen_namen.get(start + i, '')}: {k}" for i, k in enumerate(pfad)]]
+namen = ["Gesamt", *[f"{ebenen_namen.get(start + 1 + i, '')}: {k}" for i, k in enumerate(pfad)]]
 spalten = st.columns([1] * len(namen) + [6])
 for i, (sp, name) in enumerate(zip(spalten, namen)):
     if sp.button(name, key=f"crumb{i}", use_container_width=True):
