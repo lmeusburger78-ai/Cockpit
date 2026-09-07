@@ -302,6 +302,16 @@ const ADDITIV=new Set(["umsatz_eur","kosten_eur","ergebnis_eur","becher","transa
 // Aufteilung: genau drei Kennzahlen – Umsatz, Ausgaben, Gewinn – je als Balken oder Kuchen
 const SPLIT_ORDER=[["umsatz_eur","Umsatz"],["kosten_eur","Ausgaben"],["ergebnis_eur","Gewinn"]];
 const PIE_OK=new Set(["umsatz_eur","kosten_eur","ergebnis_eur"]);
+const SPLIT_LBL=Object.fromEntries(SPLIT_ORDER.map(([k,l])=>[k,l]));  // Umsatz/Ausgaben/Gewinn
+function kzLabel(k){return SPLIT_LBL[k]||(KPIS[k]?KPIS[k].name:k);}
+// Nachkommastellen im Vergleich: Ø-Kennzahlen mit 2 Stellen anzeigen
+function cmpFmt(v,metric){
+  if(v==null||isNaN(v))return "–";const e=EINHEIT[metric]||"";
+  if(e==="€")return fmtShort(v,metric);
+  if(e==="%")return v.toFixed(1).replace(".",",")+" %";
+  if(metric==="wartezeit_min"||metric==="zufriedenheit")return v.toFixed(2).replace(".",",")+(e?" "+e:"");
+  return Math.round(v).toLocaleString("de-DE")+(e?" "+e:"");
+}
 function splitCandidates(kinder){return SPLIT_ORDER.filter(([k])=>KPIS[k]&&kinder.some(r=>r[k]!=null));}
 // Kuchen nur bei additiven, nicht-negativen Werten sinnvoll (sonst nur Ranking)
 function pieMoeglich(metric,kinder){return PIE_OK.has(metric)
@@ -711,7 +721,11 @@ function renderCompare(){
   const kENose=state.pfad.length?state.pfad[state.pfad.length-1]:"Gesamt";
   const kindName=EBN[(role.start_ebene+state.pfad.length)+1]||"Knoten";
   const names=allChildNames();
-  const metricOpts=role.kennzahlen.filter(k=>KPIS[k]).map(k=>`<option value="${k}" ${k===c.metric?"selected":""}>${KPIS[k].name}</option>`).join("");
+  // Vergleichs-Kennzahlen: Rollen-Kennzahlen + immer Umsatz/Ausgaben/Gewinn
+  const cmpM=role.kennzahlen.filter(k=>KPIS[k]);
+  ["umsatz_eur","kosten_eur","ergebnis_eur"].forEach(k=>{if(KPIS[k]&&!cmpM.includes(k)){
+    const iu=cmpM.indexOf("umsatz_eur");if(k==="kosten_eur"&&iu>=0)cmpM.splice(iu+1,0,k);else cmpM.push(k);}});
+  const metricOpts=cmpM.map(k=>`<option value="${k}" ${k===c.metric?"selected":""}>${kzLabel(k)}</option>`).join("");
   const presets=(who)=>{let h='<button data-k="all" onclick="cmpPreset(\''+who+'\',\'all\')">Gesamt</button>';
     monthsIn(F.dmin,F.dmax).forEach(mo=>{h+=`<button onclick="cmpPreset('${who}','${mo}')">${MON_DE[mo.slice(5,7)]}</button>`;});return h;};
   const cfarb=knotenFarben();  // gleiche Farben wie im Ranking/Kuchen des Knotens
@@ -755,22 +769,22 @@ function drawCompare(){
   const kd=KPIS[c.metric],sel=[...c.sel];
   const rows=sel.map(nm=>({nm,a:childValue(nm,c.metric,c.aF,c.aT),b:childValue(nm,c.metric,c.bF,c.bT)}))
     .filter(r=>r.a!=null||r.b!=null).sort((x,y)=>(y.b??y.a??0)-(x.b??x.a??0));
-  const isU=(EINHEIT[c.metric]==="€");
-  const fmtv=v=>v==null?"–":(isU?fmtShort(v,c.metric):(EINHEIT[c.metric]==="%"?v.toFixed(1).replace(".",",")+" %":Math.round(v).toLocaleString("de-DE")+" "+(EINHEIT[c.metric]||"")));
+  const fmtv=v=>cmpFmt(v,c.metric);
+  const dez=(c.metric==="wartezeit_min"||c.metric==="zufriedenheit")?2:(EINHEIT[c.metric]==="%"?1:0);
   // feste Standort-/Produktfarben – konsistent zu Ranking/Kuchen; A kräftig, B hell
   const cf=knotenFarben();
   const cols=rows.map((r,i)=>cf[r.nm]||SERIES[i%SERIES.length]);
   const aLbl="A · "+fmtDE(c.aF)+"–"+fmtDE(c.aT), bLbl="B · "+fmtDE(c.bF)+"–"+fmtDE(c.bT);
   const trA={type:"bar",name:aLbl,x:rows.map(r=>r.nm),y:rows.map(r=>r.a),
     marker:{color:cols},offsetgroup:"a",showlegend:false,
-    hovertemplate:"%{x}<br>"+aLbl+": %{y:,.0f}<extra></extra>"};
+    hovertemplate:"%{x}<br>"+aLbl+": %{y:,."+dez+"f}<extra></extra>"};
   const trB={type:"bar",name:bLbl,x:rows.map(r=>r.nm),y:rows.map(r=>r.b),
     marker:{color:cols.map(x=>lighten(x,0.55)),line:{color:cols,width:1.4}},offsetgroup:"b",showlegend:false,
-    hovertemplate:"%{x}<br>"+bLbl+": %{y:,.0f}<extra></extra>"};
-  const lay=baseLayout(kd.name+" – Zeitraum A gegen B je "+(EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten"),
+    hovertemplate:"%{x}<br>"+bLbl+": %{y:,."+dez+"f}<extra></extra>"};
+  const lay=baseLayout(kzLabel(c.metric)+" – Zeitraum A gegen B je "+(EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten"),
     "kräftig = Zeitraum A · hell = Zeitraum B",Math.max(360,140+30*rows.length));
   lay.barmode="group";lay.bargap=0.32;lay.bargroupgap=0.12;
-  lay.yaxis.title={text:kd.name+" ("+(EINHEIT[c.metric]||"")+")",font:{size:12,color:cssv("--ink-2")}};
+  lay.yaxis.title={text:kzLabel(c.metric)+" ("+(EINHEIT[c.metric]||"")+")",font:{size:12,color:cssv("--ink-2")}};
   lay.yaxis.rangemode="tozero";lay.showlegend=false;
   lay.margin={l:74,r:24,t:70,b:64};
   Plotly.newPlot(el,[trA,trB],lay,CFG);
