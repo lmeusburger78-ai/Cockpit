@@ -129,6 +129,7 @@ h2.node{font-size:27px;margin:2px 0 3px;letter-spacing:-.02em;text-wrap:balance}
 .tgroup button{border:none;background:none;color:var(--ink-2);font:inherit;font-size:12.5px;font-weight:500;
   padding:6px 13px;cursor:pointer}
 .tgroup button.on{background:var(--accent);color:#fff}
+.tgroup button:disabled{opacity:.4;cursor:not-allowed}
 .tgroup button+button{border-left:1px solid var(--hair)}
 .tglabel{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;
   align-self:center;margin-right:2px}
@@ -282,17 +283,25 @@ const SEQ=["#cde2fb","#9ec5f4","#6da7ec","#3987e5","#256abf","#184f95","#0d366b"
 const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let FARB={};
 function farbMap(kinder,kid,kindeb){
-  const rows=kinder.filter(r=>r[kid]!=null).sort((a,b)=>b[kid]-a[kid]);
-  const m={};let i=0;rows.forEach(r=>{m[r[kindeb]]=SERIES[i++%SERIES.length];});
-  // Kosten-only Knoten (ohne Wert) hinten anfügen
-  kinder.forEach(r=>{const nm=r[kindeb];if(!(nm in m))m[nm]=SERIES[i++%SERIES.length];});
+  // Farbe folgt der Entität – Zuordnung immer nach Umsatz-Rang (fix, unabhängig von der gewählten Kennzahl),
+  // damit ein Standort/Produkt in allen Grafiken dieselbe Farbe behält.
+  const basis=kinder.some(r=>r.umsatz_eur!=null)?"umsatz_eur":kid;
+  const rows=kinder.filter(r=>r[basis]!=null).sort((a,b)=>b[basis]-a[basis]);
+  const m={};let i=0;rows.forEach(r=>{if(!(r[kindeb] in m))m[r[kindeb]]=SERIES[i++%SERIES.length];});
+  // Knoten ohne Basiswert (z. B. reine Kostenstellen) alphabetisch anhängen
+  [...new Set(kinder.map(r=>r[kindeb]))].sort().forEach(nm=>{if(!(nm in m))m[nm]=SERIES[i++%SERIES.length];});
   return m;
 }
 function farbeFuer(nm,i){return FARB[nm]||SERIES[(i||0)%SERIES.length];}
-// Kennzahlen, die als Aufteilung (Ranking/Kuchen) sinnvoll wählbar sind – in Anzeigereihenfolge
-const SPLIT_ORDER=[["umsatz_eur","Umsatz"],["ergebnis_eur","Gewinn"],["kosten_eur","Ausgaben"],
-  ["becher","Menge"],["transaktionen","Bons"]];
-const PIE_OK=new Set(["umsatz_eur","ergebnis_eur","kosten_eur","becher","transaktionen"]);
+// helle Variante einer Farbe (mit Weiß gemischt) – für Zeitraum B im Vergleich
+function lighten(hex,f){f=(f==null?0.5:f);const h=String(hex).replace("#","");
+  if(h.length<6)return hex;const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  const m=c=>Math.round(c+(255-c)*f).toString(16).padStart(2,"0");return "#"+m(r)+m(g)+m(b);}
+// additive Kennzahlen (summierbar) – nur für sie ist ein Gesamt-Summenwert korrekt
+const ADDITIV=new Set(["umsatz_eur","kosten_eur","ergebnis_eur","becher","transaktionen"]);
+// Aufteilung: genau drei Kennzahlen – Umsatz, Ausgaben, Gewinn – je als Balken oder Kuchen
+const SPLIT_ORDER=[["umsatz_eur","Umsatz"],["kosten_eur","Ausgaben"],["ergebnis_eur","Gewinn"]];
+const PIE_OK=new Set(["umsatz_eur","kosten_eur","ergebnis_eur"]);
 function splitCandidates(kinder){return SPLIT_ORDER.filter(([k])=>KPIS[k]&&kinder.some(r=>r[k]!=null));}
 // Kuchen nur bei additiven, nicht-negativen Werten sinnvoll (sonst nur Ranking)
 function pieMoeglich(metric,kinder){return PIE_OK.has(metric)
@@ -324,7 +333,7 @@ const GLOSS={umsatz_eur:"Summe aller Verkäufe (Brutto-Umsatz) im Zeitraum.",
   becher:"Verkaufte Menge in Bechern.",transaktionen:"Anzahl der Bons (Verkäufe).",
   bonwert_eur:"Durchschnittlicher Umsatz je Bon (Umsatz ÷ Transaktionen).",
   kosten_eur:"Summe aller Kosten im Zeitraum."};
-let state={role:null,pfad:[],from:null,to:null,splitMetric:"umsatz_eur"};
+let state={role:null,pfad:[],from:null,to:null,splitMetric:"umsatz_eur",splitView:"kuchen"};
 const KPIS=F.kpis,ROLLES=F.rollen,EBN=F.ebenen,ORTE=F.orte,EBENE1=F.ebene1;
 state.from=F.dmin; state.to=F.dmax;
 const AMPEL={wartezeit_min:{dir:"kl",g:5.5,y:6.5},zufriedenheit:{dir:"gr",g:3.8,y:3.4},
@@ -748,27 +757,38 @@ function drawCompare(){
     .filter(r=>r.a!=null||r.b!=null).sort((x,y)=>(y.b??y.a??0)-(x.b??x.a??0));
   const isU=(EINHEIT[c.metric]==="€");
   const fmtv=v=>v==null?"–":(isU?fmtShort(v,c.metric):(EINHEIT[c.metric]==="%"?v.toFixed(1).replace(".",",")+" %":Math.round(v).toLocaleString("de-DE")+" "+(EINHEIT[c.metric]||"")));
-  const trA={type:"bar",name:"A: "+fmtDE(c.aF)+"–"+fmtDE(c.aT),x:rows.map(r=>r.nm),y:rows.map(r=>r.a),
-    marker:{color:SERIES[0]},hovertemplate:"%{x}<br>A: %{y:,.0f}<extra></extra>"};
-  const trB={type:"bar",name:"B: "+fmtDE(c.bF)+"–"+fmtDE(c.bT),x:rows.map(r=>r.nm),y:rows.map(r=>r.b),
-    marker:{color:SERIES[1]},hovertemplate:"%{x}<br>B: %{y:,.0f}<extra></extra>"};
-  const lay=baseLayout(kd.name+" – Zeitraum A gegen B",EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"",Math.max(380,120+30*rows.length));
-  lay.barmode="group";lay.bargap=0.28;lay.bargroupgap=0.12;
+  // feste Standort-/Produktfarben – konsistent zu Ranking/Kuchen; A kräftig, B hell
+  const cf=knotenFarben();
+  const cols=rows.map((r,i)=>cf[r.nm]||SERIES[i%SERIES.length]);
+  const aLbl="A · "+fmtDE(c.aF)+"–"+fmtDE(c.aT), bLbl="B · "+fmtDE(c.bF)+"–"+fmtDE(c.bT);
+  const trA={type:"bar",name:aLbl,x:rows.map(r=>r.nm),y:rows.map(r=>r.a),
+    marker:{color:cols},offsetgroup:"a",showlegend:false,
+    hovertemplate:"%{x}<br>"+aLbl+": %{y:,.0f}<extra></extra>"};
+  const trB={type:"bar",name:bLbl,x:rows.map(r=>r.nm),y:rows.map(r=>r.b),
+    marker:{color:cols.map(x=>lighten(x,0.55)),line:{color:cols,width:1.4}},offsetgroup:"b",showlegend:false,
+    hovertemplate:"%{x}<br>"+bLbl+": %{y:,.0f}<extra></extra>"};
+  const lay=baseLayout(kd.name+" – Zeitraum A gegen B je "+(EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten"),
+    "kräftig = Zeitraum A · hell = Zeitraum B",Math.max(360,140+30*rows.length));
+  lay.barmode="group";lay.bargap=0.32;lay.bargroupgap=0.12;
   lay.yaxis.title={text:kd.name+" ("+(EINHEIT[c.metric]||"")+")",font:{size:12,color:cssv("--ink-2")}};
-  lay.yaxis.rangemode="tozero";lay.showlegend=true;
-  lay.legend={orientation:"h",y:-0.18,font:{color:cssv("--ink-2"),size:12}};
-  lay.margin={l:70,r:24,t:64,b:70};
+  lay.yaxis.rangemode="tozero";lay.showlegend=false;
+  lay.margin={l:74,r:24,t:70,b:64};
   Plotly.newPlot(el,[trA,trB],lay,CFG);
-  // Tabelle
+  // Tabelle – Summe nur bei additiven Kennzahlen sinnvoll (nicht bei Ø/Prozent)
+  const additiv=ADDITIV.has(c.metric);
   let tot={a:0,b:0};rows.forEach(r=>{tot.a+=r.a||0;tot.b+=r.b||0;});
   const tr=rows.map(r=>{const d=(r.a&&r.b)?((r.b-r.a)/Math.abs(r.a)*100):null;
     const dc=d==null?"":(((d>=0)===(kd.richtung==="groesser_ist_besser"))?cssv("--gruen"):cssv("--rot"));
     return `<tr><td>${r.nm}</td><td class="mono">${fmtv(r.a)}</td><td class="mono">${fmtv(r.b)}</td>
       <td class="mono" style="color:${dc}">${d==null?"–":(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %"}</td></tr>`;}).join("");
   const dtot=(tot.a&&tot.b)?((tot.b-tot.a)/Math.abs(tot.a)*100):null;
+  const gesamtRow=additiv
+    ?`<tr style="font-weight:600"><td>Gesamt (Auswahl)</td><td class="mono">${fmtv(tot.a)}</td><td class="mono">${fmtv(tot.b)}</td>
+       <td class="mono">${dtot==null?"–":(dtot>=0?"▲ ":"▼ ")+Math.abs(dtot).toFixed(1).replace(".",",")+" %"}</td></tr>`
+    :`<tr style="font-weight:600;color:var(--muted)"><td>Gesamt (Auswahl)</td><td class="mono">–</td><td class="mono">–</td>
+       <td class="mono" style="font-weight:400">Ø/‑Kennzahl nicht summierbar</td></tr>`;
   document.getElementById("cmptable").innerHTML=`<table><thead><tr><th>${EBN[(ROLLES[state.role].start_ebene+state.pfad.length)+1]||"Knoten"}</th><th>Zeitraum A</th><th>Zeitraum B</th><th>Δ</th></tr></thead>
-    <tbody>${tr}<tr style="font-weight:600"><td>Gesamt (Auswahl)</td><td class="mono">${fmtv(tot.a)}</td><td class="mono">${fmtv(tot.b)}</td>
-    <td class="mono">${dtot==null?"–":(dtot>=0?"▲ ":"▼ ")+Math.abs(dtot).toFixed(1).replace(".",",")+" %"}</td></tr></tbody></table>`;
+    <tbody>${tr}${gesamtRow}</tbody></table>`;
 }
 function drill(name){state.pfad=[...state.pfad,name];state.cmp=null;render();}
 function goto(i){state.pfad=state.pfad.slice(0,i);state.cmp=null;render();}
@@ -816,21 +836,30 @@ function renderSplit(){
     const kid=n.kennzahlen[0]||"umsatz_eur";trend(document.getElementById("trendplot"),n.monat,kid,KPIS[kid]);return;}
   const cands=splitCandidates(n.kinder);
   if(!cands.some(([k])=>k===state.splitMetric))state.splitMetric=cands.length?cands[0][0]:"umsatz_eur";
-  const metric=state.splitMetric,pieOn=pieMoeglich(metric,n.kinder);
-  const reiter='<span class="tgroup">'+cands.map(([k,lbl])=>
+  const metric=state.splitMetric,pieOk=pieMoeglich(metric,n.kinder);
+  if(state.splitView==="kuchen"&&!pieOk)state.splitView="balken";  // Kuchen bei Minuswerten nicht sinnvoll
+  const view=state.splitView;
+  const kReiter='<span class="tgroup">'+cands.map(([k,lbl])=>
       `<button class="${k===metric?"on":""}" onclick="setSplitMetric('${k}')">${lbl}</button>`).join("")+'</span>';
+  const vReiter='<span class="tgroup">'
+    +`<button class="${view==="balken"?"on":""}" onclick="setSplitView('balken')">Balken</button>`
+    +`<button class="${view==="kuchen"?"on":""}" ${pieOk?"":"disabled title=\"Kuchen nur bei nicht-negativen Werten\""} onclick="${pieOk?"setSplitView('kuchen')":"return false"}">Kuchen</button>`
+    +'</span>';
   el.innerHTML=`<div class="sec-h">Aufteilung nach ${EBN[n.ebene+1]||"Knoten"}</div>`
-    +`<div class="toggles"><span class="tglabel">Kennzahl</span>${reiter}</div>`
-    +(pieOn
-      ?`<div class="grid2"><div class="card"><div id="rankplot" class="plot"></div></div>
-        <div class="card"><div class="pierow"><div id="pieplot"></div><div id="pielegend" class="pielegend"></div></div></div></div>`
-      :`<div class="card"><div id="rankplot" class="plot"></div></div>`);
+    +`<div class="toggles"><span class="tglabel">Kennzahl</span>${kReiter}`
+    +`<span class="tglabel">Darstellung</span>${vReiter}</div>`
+    +`<div class="card">`
+    +(view==="kuchen"
+       ?`<div class="pierow"><div id="pieplot"></div><div id="pielegend" class="pielegend"></div></div>`
+       :`<div id="rankplot" class="plot"></div>`)
+    +`</div>`;
   FARB=farbMap(n.kinder,metric,n.kind_ebene);
-  ranking(document.getElementById("rankplot"),n.kinder,metric,KPIS[metric],n.kind_ebene);
-  if(pieOn){pie(document.getElementById("pieplot"),n.kinder,metric,KPIS[metric]);
+  if(view==="kuchen"){pie(document.getElementById("pieplot"),n.kinder,metric,KPIS[metric]);
     pieLegend(document.getElementById("pielegend"),n.kinder,metric);}
+  else ranking(document.getElementById("rankplot"),n.kinder,metric,KPIS[metric],n.kind_ebene);
 }
 function setSplitMetric(k){state.splitMetric=k;renderSplit();}
+function setSplitView(v){state.splitView=v;renderSplit();}
 function renderResult(){
   const n=node(),el=document.getElementById("sec-result");
   if(n.waterfall&&Object.keys(n.waterfall.kostenarten).length){
