@@ -55,7 +55,7 @@ window.Cockpit = window.Cockpit || {};
           el("div", { class: "muted", text: `${symbols.length} Titel` }),
         ]),
         el("div", { class: "chips" }, symbols.map((s) =>
-          el("span", { class: "chip", style: "cursor:default;" }, `${s} · ${C.meta(s).name}`))),
+          el("span", { class: "chip", title: "Details anzeigen", onclick: () => C.openStockDetail(s) }, `${s} · ${C.meta(s).name}`))),
       ]));
 
       // ---- Quartalszahlen ----
@@ -75,6 +75,8 @@ window.Cockpit = window.Cockpit || {};
       ]));
       newsCard.appendChild(el("div", { class: "empty", text: "Lade News …" }));
       root.appendChild(newsCard);
+
+      root.appendChild(sourcesCard());
 
       // Daten laden (parallel)
       const [earnings, news] = await Promise.all([
@@ -147,7 +149,7 @@ window.Cockpit = window.Cockpit || {};
         ? el("a", { href: n.url, target: "_blank", rel: "noopener", text: n.headline })
         : el("span", { text: n.headline });
       list.appendChild(el("div", { class: "news-item" }, [
-        el("div", { class: "tag" }, el("span", { class: "news-cat news", text: n.symbol })),
+        el("div", { class: "tag" }, el("span", { class: "news-cat news link", title: "Details anzeigen", onclick: () => C.openStockDetail(n.symbol), text: n.symbol })),
         el("div", { class: "news-body" }, [
           el("h4", {}, link),
           el("div", { class: "news-meta" }, [
@@ -165,4 +167,28 @@ window.Cockpit = window.Cockpit || {};
   }
 
   function trim(s, n) { return s && s.length > n ? s.slice(0, n).trim() + " …" : s; }
+
+  // Kuratierte, gute Finanz-Nachrichtenquellen (Startseiten)
+  const GENERAL_SOURCES = [
+    { name: "Google News – Börse", url: "https://news.google.com/search?q=B%C3%B6rse%20Aktien&hl=de&gl=DE" },
+    { name: "Yahoo Finance", url: "https://finance.yahoo.com/" },
+    { name: "finanzen.net", url: "https://www.finanzen.net/nachrichten/" },
+    { name: "Handelsblatt Finanzen", url: "https://www.handelsblatt.com/finanzen/" },
+    { name: "Reuters Markets", url: "https://www.reuters.com/markets/" },
+    { name: "Bloomberg Markets", url: "https://www.bloomberg.com/markets" },
+    { name: "MarketWatch", url: "https://www.marketwatch.com/" },
+    { name: "CNBC Markets", url: "https://www.cnbc.com/markets/" },
+    { name: "Seeking Alpha", url: "https://seekingalpha.com/market-news" },
+    { name: "Finviz", url: "https://finviz.com/news.ashx" },
+  ];
+  function sourcesCard() {
+    return el("div", { class: "card", style: "margin-top:18px;" }, [
+      el("div", { class: "card-head" }, [
+        el("h3", { text: "Nachrichten-Quellen" }),
+        el("div", { class: "muted", text: "gute Seiten für Börsen-News" }),
+      ]),
+      el("div", { class: "chips" }, GENERAL_SOURCES.map((s) =>
+        el("a", { class: "chip", href: s.url, target: "_blank", rel: "noopener" }, s.name))),
+    ]);
+  }
 })(window.Cockpit);

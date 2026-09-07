@@ -62,13 +62,17 @@ window.Cockpit = window.Cockpit || {};
         const m = C.meta(sym);
         const q = quotes[sym] || { price: m.base, changePct: 0, change: 0 };
         tb.appendChild(el("tr", {}, [
-          el("td", {}, [el("span", { class: "sym" }, sym), el("div", { class: "sym-name", text: m.name })]),
+          el("td", {}, [
+            el("span", { class: "sym link", title: "Details anzeigen", onclick: () => C.openStockDetail(sym) }, sym),
+            el("div", { class: "sym-name", text: m.name }),
+          ]),
           el("td", {}, el("span", { class: "sym-name", text: m.sector })),
           el("td", {}, el("b", { text: C.fmtMoney(q.price) })),
           el("td", {}, el("span", { class: C.signClass(q.change) },
             `${C.arrow(q.change)} ${C.fmtMoney(Math.abs(q.change))} (${C.fmtPct(q.changePct)})`)),
           el("td", {}, sparkbar(q)),
           el("td", {}, [
+            el("button", { class: "icon-btn", title: "Details", onclick: () => C.openStockDetail(sym) }, "ℹ"),
             el("button", { class: "icon-btn", title: "Ins Portfolio", onclick: () => C.goPortfolioAdd(sym) }, "＋"),
             el("button", { class: "icon-btn", title: "Entfernen", onclick: () => { C.state.removeWatch(sym); C.toast(sym + " entfernt."); C.rerender(); } }, "🗑"),
           ]),

@@ -271,7 +271,10 @@ window.Cockpit = window.Cockpit || {};
     [...rows].sort((a, b) => b.value - a.value).forEach((r) => {
       const w = total ? (r.value / total) * 100 : 0;
       tb.appendChild(el("tr", {}, [
-        td([el("span", { class: "sym" }, r.symbol), el("div", { class: "sym-name", text: r.meta.name })], true),
+        td([
+          el("span", { class: "sym link", title: "Details anzeigen", onclick: () => C.openStockDetail(r.symbol) }, r.symbol),
+          el("div", { class: "sym-name", text: r.meta.name }),
+        ], true),
         td(C.fmtNum(w, 1) + " %"),
         td(C.fmtNum(r.shares, r.shares % 1 ? 4 : 0)),
         td(C.fmtMoney(r.avgPrice)),
@@ -283,6 +286,7 @@ window.Cockpit = window.Cockpit || {};
           el("div", { class: "sym-name " + C.signClass(r.pl), text: C.fmtPct(r.plPct) }),
         ])),
         td(el("span", {}, [
+          iconBtn("ℹ", "Details", () => C.openStockDetail(r.symbol)),
           iconBtn("✎", "Bearbeiten", () => openHoldingModal(r)),
           iconBtn("🗑", "Entfernen", () => {
             if (confirm(`${r.symbol} aus dem Portfolio entfernen?`)) {

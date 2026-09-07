@@ -21,8 +21,20 @@ Einfach `index.html` im Browser öffnen.
 
 ### 3 · News & Zahlen
 - **Branche auswählen** → Nachrichten der Titel dieser Branche
+- **Klickbare Headlines** (mit Aktien-Kürzel) führen direkt zum Artikel
 - **Quartalszahlen** je Titel: EPS Ist vs. Erwartung, Überraschung in %, Umsatz
 - Umschaltbar zwischen *ganzer Branche* und *nur meinen Titeln*
+- Kuratierte **Nachrichten-Quellen** (Google News, Yahoo Finance, finanzen.net,
+  Handelsblatt, Reuters, Bloomberg, MarketWatch, CNBC, Seeking Alpha, Finviz)
+
+### 4 · Aktien-Detailansicht
+Klick auf ein Kürzel (in Portfolio, Watchlist oder News) öffnet die Detailansicht mit:
+- **Kurs-Chart** mit Zeitraum-Umschaltung (1M/3M/6M/1J)
+- **Buy/Hold/Sell-Rating** (Analysten-Konsens + Verteilung)
+- **Kennzahlen:** KGV, 52-Wochen-Hoch/Tief inkl. Positionsanzeige, Beta, Marktkapitalisierung, EPS
+- **Nächster Quartalstermin** und **Dividende** (Rendite, Betrag, Ex-Tag)
+- **Letzte Quartalszahlen** (4 Quartale) und **Jahreszahlen** (3 Jahre)
+- **Aktuelle Nachrichten** + Direktlinks zu den wichtigsten Quellen je Aktie
 
 ### Weiteres
 - 🌗 Hell-/Dunkel-Modus
@@ -66,6 +78,7 @@ js/
   portfolio.js        Seite „Portfolio"
   watchlist.js        Seite „Watchlist"
   news.js             Seite „News & Zahlen"
+  detail.js           Aktien-Detailansicht (Modal)
   app.js              Router, Navigation, Theme, Einstellungen
   vendor/chart.umd.js Chart.js 4.4.1 (lokal, MIT-Lizenz)
 ```

@@ -123,7 +123,8 @@ window.Cockpit = window.Cockpit || {};
         headline: tpl.t(m.name),
         summary: tpl.s(m.name),
         source: ["Reuters", "Bloomberg", "Handelsblatt", "CNBC", "Börse Online"][Math.floor(r() * 5)],
-        url: "#",
+        // In Demo führt der Klick auf eine echte Google-News-Suche zur Aktie
+        url: C.newsSearchUrl(m.name),
         datetime: Date.now() - ago,
       });
     }
@@ -150,6 +151,140 @@ window.Cockpit = window.Cockpit || {};
       revenueActual: rev,      // in Mio.
       revenueEstimate: revEst, // in Mio.
     };
+  }
+
+  /* ---------- Externe Links / News-Quellen ---------- */
+  C.newsSearchUrl = (name) =>
+    `https://news.google.com/search?q=${encodeURIComponent(name + " Aktie")}&hl=de&gl=DE`;
+
+  /** Kuratierte, gute Nachrichten-Quellen (allgemein + je Aktie). */
+  C.NEWS_SOURCES = [
+    { name: "Google News", url: (s, n) => C.newsSearchUrl(n) },
+    { name: "Yahoo Finance", url: (s) => `https://finance.yahoo.com/quote/${s}/news` },
+    { name: "finanzen.net", url: (s, n) => `https://www.finanzen.net/suchergebnis.asp?frmAktiensucheTextfeld=${encodeURIComponent(n)}` },
+    { name: "MarketWatch", url: (s) => `https://www.marketwatch.com/investing/stock/${s}` },
+    { name: "Seeking Alpha", url: (s) => `https://seekingalpha.com/symbol/${s}/news` },
+    { name: "Finviz", url: (s) => `https://finviz.com/quote.ashx?t=${s}` },
+    { name: "Reuters", url: (s, n) => `https://www.reuters.com/site-search/?query=${encodeURIComponent(n)}` },
+  ];
+
+  /* ---------- Demo: Detaildaten je Aktie ---------- */
+  function demoProfile(sym) {
+    const m = C.meta(sym);
+    const r = C.rng(C.hashSeed(sym + "p"));
+    const q = demoQuote(sym);
+    const sharesOut = Math.round(200 + r() * 8000); // Mio. Aktien
+    return {
+      symbol: sym, name: m.name, sector: m.sector,
+      country: ["US", "DE", "NL", "DK", "GB"][Math.floor(r() * 5)],
+      marketCap: Math.round((q.price * sharesOut) / 1000), // Mrd.
+      shareOutstanding: sharesOut,
+      currency: "USD",
+      weburl: "https://www.google.com/search?q=" + encodeURIComponent(m.name),
+    };
+  }
+
+  function demoRecommendation(sym) {
+    const r = C.rng(C.hashSeed(sym + "rec"));
+    const total = 18 + Math.floor(r() * 22);
+    const bias = r(); // 0..1, höher = optimistischer
+    const strongBuy = Math.round(total * (0.15 + bias * 0.35));
+    const buy = Math.round(total * (0.2 + bias * 0.2));
+    const hold = Math.round(total * (0.15 + (1 - bias) * 0.3));
+    const sell = Math.round(total * ((1 - bias) * 0.12));
+    const strongSell = Math.max(0, total - strongBuy - buy - hold - sell);
+    return { symbol: sym, period: "aktuell", strongBuy, buy, hold, sell, strongSell };
+  }
+
+  function demoMetrics(sym) {
+    const r = C.rng(C.hashSeed(sym + "met"));
+    const q = demoQuote(sym);
+    return {
+      pe: +(10 + r() * 35).toFixed(1),
+      eps: +(q.price / (10 + r() * 35)).toFixed(2),
+      high52: +(q.price * (1.05 + r() * 0.35)).toFixed(2),
+      low52: +(q.price * (0.55 + r() * 0.3)).toFixed(2),
+      beta: +(0.6 + r() * 1.1).toFixed(2),
+      dividendYield: +(r() * 3.8).toFixed(2), // %
+    };
+  }
+
+  function demoNextEarnings(sym) {
+    const r = C.rng(C.hashSeed(sym + "cal"));
+    const inDays = 8 + Math.floor(r() * 80);
+    const m = C.meta(sym);
+    return {
+      symbol: sym,
+      date: Date.now() + inDays * 86400000,
+      epsEstimate: +(0.8 + r() * 3).toFixed(2),
+      quarter: ["Q1", "Q2", "Q3", "Q4"][Math.floor(r() * 4)] + " 2026",
+    };
+  }
+
+  function demoDividend(sym) {
+    const met = demoMetrics(sym);
+    const q = demoQuote(sym);
+    if (met.dividendYield < 0.4) return { symbol: sym, pays: false };
+    const r = C.rng(C.hashSeed(sym + "div"));
+    const annual = +((met.dividendYield / 100) * q.price).toFixed(2);
+    const perQuarter = +(annual / 4).toFixed(2);
+    const exInDays = -20 + Math.floor(r() * 70);
+    return {
+      symbol: sym, pays: true,
+      amountPerQuarter: perQuarter,
+      amountAnnual: annual,
+      yield: met.dividendYield,
+      frequency: "Quartal",
+      exDate: Date.now() + exInDays * 86400000,
+      payDate: Date.now() + (exInDays + 14) * 86400000,
+    };
+  }
+
+  /** Letzte 4 Quartale (neuestes zuerst). */
+  function demoQuarterly(sym) {
+    const r = C.rng(C.hashSeed(sym + "qh"));
+    const m = C.meta(sym);
+    const out = [];
+    let rev = m.base * (80 + r() * 300);
+    let eps = 0.8 + r() * 2.5;
+    const now = new Date();
+    let qy = now.getFullYear();
+    let qi = Math.floor(now.getMonth() / 3); // 0..3 aktuelles Quartal
+    for (let i = 0; i < 4; i++) {
+      qi--; if (qi < 0) { qi = 3; qy--; }
+      const est = +eps.toFixed(2);
+      const sur = (r() - 0.4) * 16;
+      const act = +(est * (1 + sur / 100)).toFixed(2);
+      out.push({
+        period: "Q" + (qi + 1) + " " + qy,
+        epsActual: act, epsEstimate: est, epsSurprisePct: +sur.toFixed(1),
+        revenue: Math.round(rev),
+      });
+      rev /= 1 + (r() - 0.4) * 0.12;
+      eps /= 1 + (r() - 0.4) * 0.15;
+    }
+    return out;
+  }
+
+  /** Letzte 3 Geschäftsjahre (neuestes zuerst). */
+  function demoAnnual(sym) {
+    const r = C.rng(C.hashSeed(sym + "ah"));
+    const m = C.meta(sym);
+    const out = [];
+    let rev = m.base * (400 + r() * 1400);
+    let eps = 3 + r() * 9;
+    let year = new Date().getFullYear() - 1;
+    for (let i = 0; i < 3; i++) {
+      out.push({
+        year: year - i,
+        revenue: Math.round(rev),
+        eps: +eps.toFixed(2),
+        netMargin: +(8 + r() * 22).toFixed(1),
+      });
+      rev /= 1 + (0.04 + r() * 0.14);
+      eps /= 1 + (0.03 + r() * 0.16);
+    }
+    return out;
   }
 
   /* ============================================================
@@ -206,6 +341,66 @@ window.Cockpit = window.Cockpit || {};
       revenueActual: null,
       revenueEstimate: null,
     };
+  }
+
+  async function fhProfile(sym, key) {
+    const p = await fhGet(`/stock/profile2?symbol=${encodeURIComponent(sym)}`, key);
+    if (!p || !p.name) return null;
+    return {
+      symbol: sym, name: p.name, sector: p.finnhubIndustry || C.meta(sym).sector,
+      country: p.country, marketCap: p.marketCapitalization ? Math.round(p.marketCapitalization / 1000) : null,
+      shareOutstanding: p.shareOutstanding, currency: p.currency, weburl: p.weburl,
+    };
+  }
+  async function fhRecommendation(sym, key) {
+    const arr = await fhGet(`/stock/recommendation?symbol=${encodeURIComponent(sym)}`, key);
+    if (!arr || !arr.length) return null;
+    const r = arr[0];
+    return { symbol: sym, period: r.period, strongBuy: r.strongBuy, buy: r.buy, hold: r.hold, sell: r.sell, strongSell: r.strongSell };
+  }
+  async function fhMetric(sym, key) {
+    const d = await fhGet(`/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all`, key);
+    const m = (d && d.metric) || {};
+    return {
+      pe: m.peBasicExclExtraTTM ?? m.peTTM ?? null,
+      eps: m.epsBasicExclExtraItemsTTM ?? null,
+      high52: m["52WeekHigh"] ?? null,
+      low52: m["52WeekLow"] ?? null,
+      beta: m.beta ?? null,
+      dividendYield: m.dividendYieldIndicatedAnnual ?? m.currentDividendYieldTTM ?? 0,
+    };
+  }
+  async function fhNextEarnings(sym, key) {
+    const from = new Date().toISOString().slice(0, 10);
+    const to = new Date(Date.now() + 120 * 86400000).toISOString().slice(0, 10);
+    const d = await fhGet(`/calendar/earnings?symbol=${encodeURIComponent(sym)}&from=${from}&to=${to}`, key);
+    const arr = (d && d.earningsCalendar) || [];
+    if (!arr.length) return null;
+    const e = arr[0];
+    return { symbol: sym, date: new Date(e.date).getTime(), epsEstimate: e.epsEstimate, quarter: `Q${e.quarter} ${e.year}` };
+  }
+  async function fhDividend(sym, key) {
+    const from = new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10);
+    const to = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+    const arr = await fhGet(`/stock/dividend?symbol=${encodeURIComponent(sym)}&from=${from}&to=${to}`, key);
+    if (!arr || !arr.length) return { symbol: sym, pays: false };
+    arr.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const last = arr[0];
+    return {
+      symbol: sym, pays: true, amountPerQuarter: last.amount,
+      amountAnnual: null, yield: null, frequency: "",
+      exDate: new Date(last.date).getTime(), payDate: last.payDate ? new Date(last.payDate).getTime() : null,
+    };
+  }
+  async function fhQuarterly(sym, key) {
+    const arr = await fhGet(`/stock/earnings?symbol=${encodeURIComponent(sym)}&limit=4`, key);
+    if (!arr || !arr.length) return null;
+    return arr.slice(0, 4).map((e) => ({
+      period: e.period ? e.period.slice(0, 7) : (e.quarter ? "Q" + e.quarter + " " + e.year : ""),
+      epsActual: e.actual, epsEstimate: e.estimate,
+      epsSurprisePct: e.estimate ? +(((e.actual - e.estimate) / Math.abs(e.estimate)) * 100).toFixed(1) : null,
+      revenue: null,
+    }));
   }
 
   /* ============================================================
@@ -279,6 +474,33 @@ window.Cockpit = window.Cockpit || {};
       }
       symbols.forEach((s) => out.push(demoEarnings(s)));
       return out.sort((a, b) => b.date - a.date);
+    },
+
+    /** Vollständige Detaildaten für EINE Aktie (für die Detailansicht). */
+    async detail(sym) {
+      const live = this.isLive();
+      const key = live ? C.state.settings().finnhubKey : null;
+      // je Feld: live best-effort, sonst Demo-Fallback
+      const orDemo = async (liveFn, demoVal) => {
+        if (!live) return demoVal;
+        try { const v = await liveFn(); return v || demoVal; } catch (_) { return demoVal; }
+      };
+      const [quote, profile, recommendation, metrics, nextEarnings, dividend, quarterly] = await Promise.all([
+        this.quotes([sym]).then((q) => q[sym]),
+        orDemo(() => fhProfile(sym, key), demoProfile(sym)),
+        orDemo(() => fhRecommendation(sym, key), demoRecommendation(sym)),
+        orDemo(() => fhMetric(sym, key), demoMetrics(sym)),
+        orDemo(() => fhNextEarnings(sym, key), demoNextEarnings(sym)),
+        orDemo(() => fhDividend(sym, key), demoDividend(sym)),
+        orDemo(() => fhQuarterly(sym, key), demoQuarterly(sym)),
+      ]);
+      return {
+        symbol: sym, meta: C.meta(sym),
+        quote, profile, recommendation, metrics, nextEarnings, dividend,
+        quarterly: quarterly && quarterly.length ? quarterly : demoQuarterly(sym),
+        annual: demoAnnual(sym), // Jahreszahlen: Demo (Finnhub-Free liefert keine kompletten GuV)
+        isLive: live,
+      };
     },
   };
 })(window.Cockpit);

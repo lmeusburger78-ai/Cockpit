@@ -41,14 +41,15 @@
   };
 
   /* ---------- Modal ---------- */
-  C.openModal = function (title, bodyNode) {
+  C.openModal = function (title, bodyNode, opts) {
     $("#modal-title").textContent = title;
     const body = $("#modal-body");
     body.innerHTML = "";
     body.appendChild(bodyNode);
+    $("#modal").classList.toggle("wide", !!(opts && opts.wide));
     $("#modal-backdrop").hidden = false;
   };
-  C.closeModal = () => ($("#modal-backdrop").hidden = true);
+  C.closeModal = () => { $("#modal-backdrop").hidden = true; C.destroyChart("detail-chart"); };
 
   /* ---------- Theme ---------- */
   function applyTheme(theme) {
