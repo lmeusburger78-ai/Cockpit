@@ -23,4 +23,4 @@ controlling:
   start_ebene: 1
   max_ebene: 4
   filter: {}
-  kennzahlen: [umsatz_eur, kosten_eur, ergebnis_eur, umsatzrendite_pct, transaktionen, becher, wartezeit_min, zufriedenheit]
+  kennzahlen: [umsatz_eur, kosten_eur, ergebnis_eur, umsatzrendite_pct, becher, wartezeit_min, zufriedenheit]

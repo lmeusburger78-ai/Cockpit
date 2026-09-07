@@ -67,7 +67,11 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
 .setrow label{font-size:12.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
 .setrow input{width:78px;border:1px solid var(--hair);border-radius:7px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;padding:5px 7px}
 .sethint{font-size:11.5px;color:var(--muted);width:100%}
-.modebar{display:inline-flex;border:1px solid var(--hair);border-radius:9px;overflow:hidden;background:var(--surface);margin-bottom:14px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.gearbtn{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:9px;
+  padding:8px 14px;font:inherit;font-weight:600;font-size:13px;cursor:pointer}
+.gearbtn:hover{background:var(--surface)}
+.modebar{display:inline-flex;border:1px solid var(--hair);border-radius:9px;overflow:hidden;background:var(--surface)}
 .modebar button{border:none;background:none;color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer}
 .modebar button.on{background:var(--ink);color:var(--surface)}
 .modebar button+button{border-left:1px solid var(--hair)}
@@ -80,6 +84,11 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
 .cmpchk label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hair);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
 .cmpchk label .sw{width:11px;height:11px;border-radius:3px}
 .cmpchk input{accent-color:var(--accent)}
+.cmpchk .chipbtn{border:1px solid var(--hair);background:var(--surface);border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink-2);font-weight:600}
+.cmpchk .chipbtn.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chipsel{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hair);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
+.chipsel .sw{width:11px;height:11px;border-radius:3px}
+.chipsel input{accent-color:var(--accent)}
 .cmprow select{border:1px solid var(--hair);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;padding:6px 9px;min-width:180px;cursor:pointer}
 .xbtn{border:1px solid var(--hair);background:var(--surface);color:var(--muted);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:13px}
 .xbtn:disabled{opacity:.35;cursor:not-allowed}
@@ -216,9 +225,12 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
 
   <main class="main">
     <div class="crumbs" id="crumbs"></div>
-    <div class="modebar">
-      <button id="mode-u" class="on" onclick="setMode('uebersicht')">Übersicht</button>
-      <button id="mode-v" onclick="setMode('vergleich')">Vergleich</button>
+    <div class="topbar">
+      <div class="modebar">
+        <button id="mode-u" class="on" onclick="setMode('uebersicht')">Übersicht</button>
+        <button id="mode-v" onclick="setMode('vergleich')">Vergleich</button>
+      </div>
+      <button class="gearbtn" id="gearbtn" title="Einstellungen &amp; Excel-Upload">⚙️ Einstellungen</button>
     </div>
     <div id="normal">
     <div class="daterange">
@@ -756,8 +768,16 @@ function initCmp(){
   const ms=monthsIn(F.dmin,F.dmax);const first=ms[0],last=ms[ms.length-1];
   state.cmp={metric:"umsatz_eur",
     perioden:[{f:first+"-01",t:monEnd(first)},{f:last+"-01",t:monEnd(last)}],
-    std:"alle",prod:"alle",ka:"alle",serie:"standort",orient:"zeit"};
+    std:"alle",prod:"alle",ka:"alle",serie:"standort",orient:"zeit",
+    selDim:{standort:new Set(),getraenk:new Set(),kostenart:new Set()}};  // leere Menge = alle
 }
+// Universum & Auswahl der Aufschlüsselungs-Elemente (Mehrfachauswahl möglich)
+function cmpUniverse(serie){return serie==="getraenk"?allProductNames():serie==="kostenart"?allKostenarten():alleStandorte();}
+function cmpFarbFor(serie){return serie==="getraenk"?productFarben():serie==="kostenart"?kostenartFarben():standortFarben();}
+function selectedMembers(serie){const uni=cmpUniverse(serie),s=state.cmp.selDim[serie];
+  return (s&&s.size)?uni.filter(m=>s.has(m)):uni;}   // nichts gewählt => alle
+function toggleMember(nm,on){const s=state.cmp.selDim[state.cmp.serie];if(on)s.add(nm);else s.delete(nm);renderCompare();}
+function selAlle(){state.cmp.selDim[state.cmp.serie]=new Set();renderCompare();}
 // aktive Filter (nicht die Serie) als Text – damit die Auswahl im Diagramm sichtbar ist
 function cmpKontext(){const c=state.cmp,parts=[];
   if(c.serie!=="standort")parts.push("Standort: "+(c.std==="alle"?"alle":c.std));
@@ -807,14 +827,13 @@ function cmpVal(p,member){
   return cmpPivot(p,std,new Set([member]),"kostenart",metric);
 }
 function cmpSeries(){const c=state.cmp;
-  if(c.serie==="getraenk")return {members:c.prod==="alle"?allProductNames():[c.prod],farb:productFarben(),label:"Getränk"};
-  if(c.serie==="kostenart")return {members:c.ka==="alle"?allKostenarten():[c.ka],farb:kostenartFarben(),label:"Kostenart"};
-  return {members:c.std==="alle"?alleStandorte():[c.std],farb:standortFarben(),label:"Standort"};
+  const label=c.serie==="getraenk"?"Getränk":c.serie==="kostenart"?"Kostenart":"Standort";
+  return {members:selectedMembers(c.serie),farb:cmpFarbFor(c.serie),label};
 }
 function perLabel(p){const mo=p.f.slice(0,7);
   if(p.f.slice(8)==="01"&&p.t===monEnd(mo))return MON_DE[mo.slice(5,7)]+" "+mo.slice(2,4);
   return fmtDE(p.f)+"–"+fmtDE(p.t);}
-function cmpMetrics(){return [["umsatz_eur","Umsatz"],["becher","Menge"],["transaktionen","Bons"],
+function cmpMetrics(){return [["umsatz_eur","Umsatz"],["becher","Menge"],
   ["kosten_eur","Ausgaben"],["ergebnis_eur","Gewinn"],["wartezeit_min","Ø Wartezeit"],["zufriedenheit","Ø Zufriedenheit"]];}
 function cmpBreakdowns(metric){
   if(metric==="kosten_eur")return [["standort","Standort"],["kostenart","Kostenart"]];
@@ -849,9 +868,7 @@ function renderCompare(){
   const metric=c.metric,istKost=metric==="kosten_eur",istGewinn=metric==="ergebnis_eur";
   const metricOpts=cmpMetrics().map(([k,l])=>`<option value="${k}" ${k===metric?"selected":""}>${l}</option>`).join("");
   const brOpts=cmpBreakdowns(metric).map(([k,l])=>`<option value="${k}" ${k===c.serie?"selected":""}>${l}</option>`).join("");
-  const stdOpts=`<option value="alle" ${c.std==="alle"?"selected":""}>Alle Standorte</option>`+
-    alleStandorte().map(s=>`<option value="${s}" ${s===c.std?"selected":""}>${s}</option>`).join("");
-  // Positions-Filter (Getränk oder Kostenart) – nur wenn es nicht selbst die Aufschlüsselung ist
+  // Positions-Filter (Getränk oder Kostenart) – nur als Einzel-Filter, wenn es nicht selbst die Aufschlüsselung ist
   let itemRow="";
   if(istKost&&c.serie!=="kostenart"){
     const opt=`<option value="alle" ${c.ka==="alle"?"selected":""}>Alle Kostenarten</option>`+
@@ -862,8 +879,19 @@ function renderCompare(){
       allProductNames().map(p=>`<option value="${p}" ${p===c.prod?"selected":""}>${p}</option>`).join("");
     itemRow=`<div class="cmprow"><label class="f">Getränk</label><select onchange="setCmp('prod',this.value)">${opt}</select></div>`;
   }
-  const stdLabel=c.serie==="standort"?"Standorte":"Standort (Filter)";
-  const stdRow=`<div class="cmprow"><label class="f">${stdLabel}</label><select onchange="setCmp('std',this.value)">${stdOpts}</select></div>`;
+  // Standort-Filter als Dropdown, wenn Standort NICHT die Aufschlüsselung ist
+  let stdRow="";
+  if(c.serie!=="standort"){
+    const stdOpts=`<option value="alle" ${c.std==="alle"?"selected":""}>Alle Standorte</option>`+
+      alleStandorte().map(s=>`<option value="${s}" ${s===c.std?"selected":""}>${s}</option>`).join("");
+    stdRow=`<div class="cmprow"><label class="f">Standort (Filter)</label><select onchange="setCmp('std',this.value)">${stdOpts}</select></div>`;
+  }
+  // Aufschlüsselungs-Dimension: Mehrfachauswahl (z. B. genau zwei Standorte vergleichen)
+  const uni=cmpUniverse(c.serie),selSet=c.selDim[c.serie],fb=cmpFarbFor(c.serie);
+  const serLabel=c.serie==="getraenk"?"Getränke":c.serie==="kostenart"?"Kostenarten":"Standorte";
+  const chips=`<button class="chipbtn ${selSet.size?"":"on"}" onclick="selAlle()">Alle</button>`+
+    uni.map(m=>`<label class="chipsel"><input type="checkbox" ${selSet.has(m)?"checked":""} onchange="toggleMember('${String(m).replace(/'/g,"\\'")}',this.checked)"><span class="sw" style="background:${fb[m]||"#999"}"></span>${m}</label>`).join("");
+  const memberRow=`<div class="cmprow"><label class="f">${serLabel} vergleichen</label><div class="cmpchk">${chips}</div></div>`;
   const monBtns=monthsIn(F.dmin,F.dmax).map(mo=>`<button onclick="addPeriodMonth('${mo}')">+ ${MON_DE[mo.slice(5,7)]}</button>`).join("");
   const perRows=c.perioden.map((p,i)=>`<div class="cmprow"><label class="f">Zeitraum ${i+1}</label>
       <input type="date" min="${F.dmin}" max="${F.dmax}" value="${p.f}" onchange="setPeriod(${i},'f',this.value)">
@@ -882,6 +910,7 @@ function renderCompare(){
       </select></div>
       ${stdRow}
       ${itemRow}
+      ${memberRow}
       <div style="border-top:1px solid var(--hair);margin:8px 0 12px"></div>
       ${perRows}
       <div class="cmprow"><label class="f">Zeitraum +</label><span class="tgroup">${monBtns}</span>
@@ -898,7 +927,7 @@ function drawCmpWetter(){
   // Wetter nur bei Einnahmen/Gewinn sinnvoll – bei Ausgaben ausblenden (kein Zusammenhang)
   if(c.metric==="kosten_eur"){el.hidden=true;el.innerHTML="";return;}
   el.hidden=false;
-  const stds=c.std==="alle"?alleStandorte():[c.std];
+  const stds=c.serie==="standort"?selectedMembers("standort"):(c.std==="alle"?alleStandorte():[c.std]);
   const cell=(w)=>w?`Ø Temperatur <b>${w.temp.toFixed(1).replace(".",",")} °C</b> · Niederschlag <b>${Math.round(w.prec)} mm</b> · Regentage <b>${w.reg}</b>`:"keine Wetterdaten";
   const rows=c.perioden.map(p=>{const w=weatherFor(stds,p.f,p.t);
     return `<div class="cmprow"><label class="f" style="min-width:120px">${perLabel(p)}</label><span>${cell(w)}</span></div>`;}).join("");
@@ -1203,6 +1232,7 @@ function renderAmpelRows(){
 function setAmpel(kid,which,val){const v=parseFloat(String(val).replace(",","."));if(!isNaN(v)){AMPEL[kid][which]=v;render();}}
 function openSettings(){renderAmpelRows();document.getElementById("settings").classList.add("open");}
 document.getElementById("settingsbtn").onclick=openSettings;
+document.getElementById("gearbtn").onclick=openSettings;
 document.getElementById("closeset").onclick=()=>document.getElementById("settings").classList.remove("open");
 document.getElementById("settings").onclick=e=>{if(e.target.id==="settings")e.target.classList.remove("open");};
 document.getElementById("themebtn").onclick=()=>{const r=document.documentElement;
