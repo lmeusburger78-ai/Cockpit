@@ -1,0 +1,26 @@
+# Adressaten (Rollen) und ihre Sicht.
+#   start_ebene – auf welcher Hierarchie-Ebene die Rolle einsteigt
+#   max_ebene   – wie tief sie per Drill-Down gehen darf
+#   filter      – Ausschnitt der Hierarchie (leer = alles)
+#   kennzahlen  – welche Kennzahlen sie sieht (Reihenfolge = Anzeige)
+
+geschaeftsfuehrung:
+  beschreibung: Sieht das Unternehmen verdichtet, darf bis auf Standort-Ebene
+  start_ebene: 1
+  max_ebene: 2
+  filter: {}
+  kennzahlen: [umsatz_eur, ergebnis_eur, umsatzrendite_pct, zufriedenheit]
+
+standleitung_bahnhof:
+  beschreibung: Sieht nur den eigenen Stand, dafür bis auf Produkt und Größe
+  start_ebene: 2
+  max_ebene: 4
+  filter: {ebene_2: Bahnhof}
+  kennzahlen: [umsatz_eur, becher, bonwert_eur, wartezeit_min, zufriedenheit, kosten_eur]
+
+controlling:
+  beschreibung: Sieht alles auf allen Ebenen
+  start_ebene: 1
+  max_ebene: 4
+  filter: {}
+  kennzahlen: [umsatz_eur, kosten_eur, ergebnis_eur, umsatzrendite_pct, transaktionen, becher, bonwert_eur, wartezeit_min, zufriedenheit]

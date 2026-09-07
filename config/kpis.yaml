@@ -1,0 +1,89 @@
+# Kennzahlen-Katalog.
+#
+# Jede Kennzahl legt EINMAL fest, wie sie sich nach oben verdichtet:
+#   sum            – Summe (Umsatz, Kosten, Stückzahlen)
+#   mean           – einfacher Mittelwert der Einzelwerte
+#   weighted_mean  – gewichteter Mittelwert; "gewicht" nennt die Kennzahl,
+#                    mit der gewichtet wird (z. B. Wartezeit gewichtet nach
+#                    Transaktionen, damit ein Stand mit 5.000 Bons stärker
+#                    zählt als einer mit 500)
+#   min / max      – schwächstes / stärkstes Glied
+#   last           – letzter Wert (Bestände, Reifegrade)
+#
+# "berechnet" definiert eine abgeleitete Kennzahl aus bereits verdichteten
+# Werten. Wichtig: Quotienten (Ø Bonwert, Rendite) werden auf JEDER Ebene neu
+# gerechnet und niemals gemittelt – ein Mittelwert von Prozentwerten ist falsch.
+#
+# "gueltig_bis_ebene" begrenzt eine Kennzahl nach unten: Kosten sind nur bis
+# zum Standort zugeordnet, deshalb gibt es ein Ergebnis nur bis Ebene 2 – auf
+# Produkt-Ebene wäre "Umsatz minus 0 Kosten" eine Scheingenauigkeit.
+#
+# "ampel" mit "richtung" liefert die Farbe: kleiner_ist_besser vergleicht mit
+# gruen_bis/gelb_bis, groesser_ist_besser mit gruen_ab/gelb_ab.
+
+umsatz_eur:
+  name: Umsatz
+  einheit: "€"
+  aggregation: sum
+  richtung: groesser_ist_besser
+
+becher:
+  name: Becher verkauft
+  einheit: Stk
+  aggregation: sum
+  richtung: groesser_ist_besser
+
+transaktionen:
+  name: Transaktionen
+  einheit: Bons
+  aggregation: sum
+  richtung: groesser_ist_besser
+
+wartezeit_min:
+  name: Ø Wartezeit
+  einheit: Min.
+  aggregation: weighted_mean
+  gewicht: transaktionen
+  richtung: kleiner_ist_besser
+  ampel: {gruen_bis: 5.5, gelb_bis: 6.5}
+
+zufriedenheit:
+  name: Ø Zufriedenheit
+  einheit: "1–5"
+  aggregation: weighted_mean
+  gewicht: transaktionen
+  richtung: groesser_ist_besser
+  ampel: {gruen_ab: 3.8, gelb_ab: 3.4}
+
+kosten_eur:
+  name: Kosten
+  einheit: "€"
+  aggregation: sum
+  richtung: kleiner_ist_besser
+
+# --- abgeleitete Kennzahlen (Reihenfolge ist relevant) ---
+
+bonwert_eur:
+  name: Ø Bonwert
+  einheit: "€"
+  berechnet: "umsatz_eur / transaktionen"
+  richtung: groesser_ist_besser
+
+ergebnis_eur:
+  name: Ergebnis
+  einheit: "€"
+  berechnet: "umsatz_eur - kosten_eur"
+  gueltig_bis_ebene: 2
+  richtung: groesser_ist_besser
+  kommentar: >
+    Auf Standort-Ebene entspricht das dem Deckungsbeitrag des Standes,
+    auf Unternehmens-Ebene (inkl. Kostenstelle "Zentrale") dem Unternehmensgewinn.
+  ampel: {gruen_ab: 0, gelb_ab: -1000}
+
+umsatzrendite_pct:
+  name: Umsatzrendite
+  einheit: "%"
+  berechnet: "ergebnis_eur / umsatz_eur * 100"
+  gueltig_bis_ebene: 2
+  richtung: groesser_ist_besser
+  ampel: {gruen_ab: 5, gelb_ab: 0}

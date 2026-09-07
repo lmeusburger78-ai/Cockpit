@@ -1,0 +1,36 @@
+# Mapping-Profil: wie die Excel "limonadenstaende.xlsx" in das
+# einheitliche Kennzahlen-Modell überführt wird.
+#
+# Nur die beiden ROHDATEN-Blätter werden gelesen. Die Auswertungsblätter der
+# Excel (Dashboard, Monatsvergleich, GuV, ...) sind Formeln über diese Rohdaten
+# und werden im Cockpit aus dem Modell neu berechnet – das ist der Sinn des
+# einheitlichen Modells: eine Quelle, viele Sichten.
+name: limonadenstaende
+beschreibung: Verkaufszahlen der Limonadenstände (Bonierungen + Ausgaben)
+ebene_1: "Limonadenstände"          # Unternehmens-Knoten (konstant)
+
+blaetter:
+  - blatt: Bonierungen
+    kopfzeile: 1                    # Zeile mit den Spaltennamen
+    zeilen_id: BonNr                # macht jede Zahl auf ihre Excel-Zeile rückführbar
+    datum: {spalte: Datum}
+    ebenen:
+      ebene_2: Standort
+      ebene_3: Produkt
+      ebene_4: Größe
+    kennzahlen:                     # kennzahl_id -> Spalte oder Konstante
+      umsatz_eur: "Betrag (€)"
+      becher: Menge
+      transaktionen: {konstante: 1} # jede Zeile ist ein Bon
+      wartezeit_min: "Wartezeit (Min.)"
+      zufriedenheit: Zufriedenheit
+
+  - blatt: Ausgaben
+    kopfzeile: 4                    # Zeilen 1-3: Titel und Leerzeilen
+    zeilen_id: BuchNr
+    datum: {monat_spalte: Monat, jahr: 2026}   # "Mai" -> 2026-05-01
+    ebenen:
+      ebene_2: Kostenstelle
+      ebene_3: Kategorie
+    kennzahlen:
+      kosten_eur: "Betrag (€)"

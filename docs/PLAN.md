@@ -1,6 +1,6 @@
 # Prozess-Cockpit – Umsetzungsplan
 
-Stand: 2026-09-04 · Status: Entwurf zur Abstimmung
+Stand: 2026-09-07 · Status: Phase 1 in Umsetzung (Beispieldatei liegt vor, Grundgerüst gebaut)
 
 Dieses Dokument beschreibt die empfohlene Architektur, die Schnittstellen, den
 Phasenplan und die offenen Fragen für ein Cockpit zur Überwachung unserer
@@ -212,6 +212,17 @@ einzelnen Titel.
   Feature-Branches mit Pull Request. GitHub Actions führt bei jedem Push
   Lint und Tests aus.
 
+**Was ist ein Pull Request (PR)?** In Git arbeitet man nicht direkt am
+Hauptstand (`main`), sondern auf einer Kopie, dem *Branch* – so wie man ein
+Dokument nicht im Original, sondern in einer Arbeitskopie überarbeitet. Ein
+Pull Request ist die Bitte: „Übernehmt meine Änderungen aus dem Branch in
+`main`." GitHub zeigt dabei jede geänderte Zeile, führt automatisch die Tests
+aus und erlaubt Kommentare. Erst wenn alles grün ist und jemand zustimmt, wird
+zusammengeführt (*merge*). Vorteil: `main` ist immer lauffähig, und jede
+Änderung ist nachvollziehbar und rückgängig zu machen. Für dieses Projekt
+heißt das: Ich arbeite auf dem Branch `claude/process-monitoring-cockpit-…`;
+wenn ihr den Stand übernehmen wollt, wird daraus ein Pull Request nach `main`.
+
 ---
 
 ## 5. Verdichtung und Drill-Down – wie es sich anfühlt
@@ -285,7 +296,7 @@ Cockpit/
 | Phase | Inhalt | Ergebnis | Aufwand (grob) |
 |-------|--------|----------|----------------|
 | **0 – Klärung** | Offene Fragen (Abschnitt 8) beantworten, 2–3 echte Beispiel-Excel-Dateien, erster Kennzahlen-Katalog, Hierarchie, Rollenliste | Abgestimmtes `kpis.yaml`, `rollen.yaml`, `hierarchie.yaml` | 1 Workshop + 2–3 Tage |
-| **1 – Grundgerüst** | Repo-Struktur, Datenmodell, Excel-Import mit Vorlage und Prüfbericht, DuckDB-Speicher, Verdichtungslogik, Tests, CI | Daten können geladen und per Skript verdichtet werden | 1 Woche |
+| **1 – Grundgerüst** ✅ | Repo-Struktur, Datenmodell, Excel-Import mit Mapping-Profil und Prüfbericht, DuckDB-Speicher, Verdichtungslogik, Rollen-Sicht, Tests, CI | Daten können geladen und per Skript verdichtet werden (siehe `scripts/demo_drilldown.py`, [Datenmodell](DATENMODELL.md)) | erledigt |
 | **2 – Cockpit MVP** | Streamlit-App: Login (lokal), Rollen-Sicht, Kacheln mit Ampeln, Drill-Down, Zeitvergleich, Upload-Seite | Erstes nutzbares Cockpit mit echten Daten für 2 Rollen | 1–2 Wochen |
 | **3 – Weitere Schnittstellen** | Bundle-Import, Aktien-Feed + Aktien-Cockpit, OneDrive-Polling | Alle gewünschten Datenwege laufen | 1–2 Wochen |
 | **4 – Betrieb** | SSO (Entra ID), Hosting, Backups, Betriebs-Doku, Übergabe/Schulung | Produktivbetrieb | 1 Woche |
@@ -309,9 +320,9 @@ kommen.
 3. **Adressaten:** Welche Rollen, wie viele Personen, wer darf was sehen?
    Reicht ein einfacher Login, oder ist SSO mit den M365-Konten Pflicht?
    Gibt es Mandanten (z. B. mehrere Kunden strikt getrennt)?
-4. **Beispiel-Daten:** 2–3 echte (oder anonymisierte) Excel-Dateien, wie sie
-   heute geliefert werden. Daraus entstehen Vorlage und Mapping-Profile.
-   Wie sehen die „gebündelten" Daten aus – ZIP, Mehrfach-Sheets, Ordner?
+4. **Beispiel-Daten:** ✅ `examples/limonadenstaende.xlsx` liegt vor, das
+   Mapping-Profil dazu ist gebaut. Offen: Wie sehen die „gebündelten" Daten
+   aus – ZIP, Mehrfach-Sheets, Ordner?
 5. **Frequenz:** Wie oft kommen Daten (täglich, wöchentlich, monatlich)?
    Werden alte Stände überschrieben oder soll eine Historie entstehen?
 6. **Aktienwerte:** Welche Titel, welcher Zweck (eigene Aktie, Benchmark,
@@ -341,7 +352,9 @@ kommen.
 
 ## 10. Nächster Schritt
 
-Sobald die Fragen 1–4 beantwortet sind (gern auch nur grob), starte ich
-Phase 1: Repo-Grundgerüst, Excel-Vorlage, Import mit Prüfbericht und ein
-erstes lauffähiges Cockpit mit Beispieldaten – so dass wir am echten
-Bildschirm weiterdiskutieren können statt am Papier.
+Phase 1 ist mit der Beispieldatei umgesetzt. Als Nächstes folgt Phase 2: die
+Streamlit-Oberfläche mit Kacheln, Ampeln, Drill-Down per Klick und
+Upload-Seite – auf Basis der bereits getesteten Logik. Parallel bitte die
+offenen Fragen 1–3 (Kennzahlen, Hierarchie, Rollen) auf euren echten Prozess
+übertragen: Die Limonadenstände sind das Muster, die Konfiguration in
+`config/` wird dann einfach ausgetauscht.

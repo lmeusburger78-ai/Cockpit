@@ -1,0 +1,26 @@
+[project]
+name = "cockpit"
+version = "0.1.0"
+description = "Prozess-Cockpit: Uploads -> einheitliches Kennzahlen-Modell -> Verdichtung und Drill-Down"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0",
+    "openpyxl>=3.1",
+    "duckdb>=0.10",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.4"]
+
+[tool.setuptools]
+packages = ["cockpit", "cockpit.ingest"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

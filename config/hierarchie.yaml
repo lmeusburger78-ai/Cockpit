@@ -1,0 +1,14 @@
+# Hierarchie des Cockpits: von oben (Ebene 1) nach unten (Ebene 4).
+# Verdichtung läuft von unten nach oben, Drill-Down von oben nach unten.
+#
+# Die Ebenen sind bewusst generisch benannt, weil unterschiedliche Datenquellen
+# unterhalb der Standort-Ebene unterschiedlich verzweigen:
+#   Verkäufe:  Unternehmen > Standort     > Produkt   > Größe
+#   Ausgaben:  Unternehmen > Kostenstelle > Kostenart
+# Ebene 2 ist in beiden Fällen derselbe Knoten (z. B. "Bahnhof"), deshalb
+# treffen sich Umsatz und Kosten dort und ein Ergebnis je Standort ist möglich.
+ebenen:
+  1: Unternehmen
+  2: Standort / Kostenstelle
+  3: Produkt / Kostenart
+  4: Größe

@@ -1,0 +1,13 @@
+# Laufzeitdaten – nie in Git
+data/
+*.duckdb
+*.duckdb.wal
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
