@@ -804,7 +804,7 @@ function initCmp(){
   const ms=monthsIn(F.dmin,F.dmax);const first=ms[0],last=ms[ms.length-1];
   state.cmp={metric:"umsatz_eur",
     perioden:[{f:first+"-01",t:monEnd(first)},{f:last+"-01",t:monEnd(last)}],
-    std:"alle",prod:"alle",ka:"alle",serie:"standort",orient:"zeit",
+    std:"alle",prod:"alle",ka:"alle",serie:"standort",orient:"zeit",stack:false,
     selDim:{standort:new Set(),getraenk:new Set(),kostenart:new Set()}};  // leere Menge = alle
 }
 // Universum & Auswahl der Aufschlüsselungs-Elemente (Mehrfachauswahl möglich)
@@ -912,8 +912,16 @@ function renderCompare(){
   const memberRow=chipGroup(c.serie,serPl+" vergleichen");
   let stdRow=c.serie!=="standort"?chipGroup("standort","Standorte (Filter)"):"";
   let itemRow="";
+  const stackDim=istKost?"kostenart":(istGewinn?null:"getraenk");  // Dimension, die man stapeln kann
+  const canStack=stackDim&&c.serie!==stackDim;
   if(istKost&&c.serie!=="kostenart")itemRow=chipGroup("kostenart","Kostenarten (Filter)");
   else if(!istKost&&!istGewinn&&c.serie!=="getraenk")itemRow=chipGroup("getraenk","Getränke (Filter)");
+  // Getränke/Kostenarten wahlweise als gestapelte Segmente je Balken zeigen
+  let stackRow="";
+  if(canStack){const lbl=stackDim==="kostenart"?"Kostenarten":"Getränke";
+    stackRow=`<div class="cmprow"><label class="f">Darstellung ${lbl}</label>
+      <span class="tgroup"><button class="${!c.stack?"on":""}" onclick="setCmp('stack',false)">Summe</button>
+      <button class="${c.stack?"on":""}" onclick="setCmp('stack',true)">einzeln (gestapelt)</button></span></div>`;}
   const monBtns=monthsIn(F.dmin,F.dmax).map(mo=>`<button onclick="addPeriodMonth('${mo}')">+ ${MON_DE[mo.slice(5,7)]}</button>`).join("");
   const perRows=c.perioden.map((p,i)=>`<div class="cmprow"><label class="f">Zeitraum ${i+1}</label>
       <input type="date" min="${F.dmin}" max="${F.dmax}" value="${p.f}" onchange="setPeriod(${i},'f',this.value)">
@@ -932,6 +940,7 @@ function renderCompare(){
       </select></div>
       ${stdRow}
       ${itemRow}
+      ${stackRow}
       ${memberRow}
       <div style="border-top:1px solid var(--hair);margin:8px 0 12px"></div>
       ${perRows}
@@ -962,27 +971,38 @@ function drawCompare(){
   const per=c.perioden,xlab=per.map(perLabel);
   const dez=(metric==="wartezeit_min"||metric==="zufriedenheit")?2:0;
   const einh=EINHEIT[metric]||"",serie=c.orient==="serie";
-  let data,legendOn;
-  if(serie){
+  const stackDim=metric==="kosten_eur"?"kostenart":(metric==="ergebnis_eur"?null:"getraenk");
+  const stacking=c.stack&&stackDim&&c.serie!==stackDim;
+  let data,legendOn,barmode="group",sub;
+  if(stacking){
+    // X = Aufschlüsselung (z. B. Standorte); jeder Balken gestapelt nach Getränk/Kostenart; Zeiträume als Gruppen
+    const segs=selectedMembers(stackDim),segFarb=cmpFarbFor(stackDim);
+    data=[];
+    segs.forEach((seg,si)=>per.forEach((p,pi)=>data.push({type:"bar",x:members,
+      y:members.map(bm=>cmpPivot(p,new Set([bm]),new Set([seg]),stackDim,metric)),
+      marker:{color:segFarb[seg]||SERIES[si%SERIES.length]},
+      name:seg,legendgroup:seg,showlegend:pi===0,offsetgroup:perLabel(p),
+      hovertemplate:(per.length>1?perLabel(p)+" · ":"")+"%{x} · "+seg+"<br>%{y:,."+dez+"f} "+einh+"<extra></extra>"})));
+    barmode="stack";legendOn=true;
+    sub="gestapelt nach "+(stackDim==="kostenart"?"Kostenart":"Getränk")+(per.length>1?" · Gruppen = Zeiträume":"");
+  }else if(serie){
     // X-Achse = Serie (z. B. Standorte nebeneinander): Farbe = feste Entitätsfarbe, Zeitraum als Schattierung
     const shade=pi=>per.length<=1?0:Math.min(0.12+pi*(0.6/(per.length-1)),0.72);
     data=per.map((p,pi)=>({type:"bar",name:perLabel(p),x:members,y:members.map(m=>cmpVal(p,m)),
       marker:{color:members.map((m,i)=>lighten(farb[m]||SERIES[i%SERIES.length],shade(pi)))},
       hovertemplate:perLabel(p)+" · %{x}<br>%{y:,."+dez+"f} "+einh+"<extra></extra>"}));
-    legendOn=false;  // Farbe = Standort (auf X-Achse), Zeitraum über Schattierung erklärt
+    legendOn=false;
+    sub=[(SER_PLURAL[label]||label)+" nebeneinander · Farbe = "+label+(per.length>1?" · heller = späterer Zeitraum":"")].concat(cmpKontext()).join(" · ");
   }else{
     // X-Achse = Zeiträume, Farbe = Serie (feste Entitätsfarbe)
     data=members.map((m,i)=>({type:"bar",name:m,x:xlab,y:per.map(p=>cmpVal(p,m)),
       marker:{color:farb[m]||SERIES[i%SERIES.length]},
       hovertemplate:"%{x} · "+m+"<br>%{y:,."+dez+"f} "+einh+"<extra></extra>"})).filter(tr=>tr.y.some(v=>v!=null));
     legendOn=members.length>1;
+    sub=["Zeiträume nebeneinander"].concat(cmpKontext()).join(" · ");
   }
-  // Untertitel zeigt die aktive Auswahl (Filter) an
-  const kontext=cmpKontext();
-  const sub=[serie?(SER_PLURAL[label]||label)+" nebeneinander · Farbe = "+label+(per.length>1?" · heller = späterer Zeitraum":""):"Zeiträume nebeneinander"].concat(kontext).join(" · ");
-  const nBars=serie?per.length:members.length;
-  const lay=baseLayout(kzLabel(metric)+" nach "+label,sub,Math.max(340,110+24*(serie?members.length:members.length)));
-  lay.barmode="group";lay.bargap=0.3;lay.bargroupgap=0.1;
+  const lay=baseLayout(kzLabel(metric)+" nach "+label,sub,Math.max(340,110+24*members.length));
+  lay.barmode=barmode;lay.bargap=0.3;lay.bargroupgap=0.1;
   lay.yaxis.title={text:kzLabel(metric)+" ("+einh+")",font:{size:12,color:cssv("--ink-2")}};
   lay.yaxis.rangemode="tozero";lay.showlegend=legendOn;
   lay.legend={orientation:"h",y:-0.16,font:{color:cssv("--ink-2"),size:12}};
