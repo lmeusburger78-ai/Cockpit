@@ -33,7 +33,7 @@
         <header class="setup-head">
           <div>
             <div class="eyebrow">Workout</div>
-            <h1 class="title-lg">Leistung</h1>
+            <h1 class="title-lg" id="setupTitle">Leistung</h1>
           </div>
           <div class="head-actions">
             <button class="icon-btn" id="openSettings" aria-label="Einstellungen">
@@ -43,55 +43,29 @@
           </div>
         </header>
 
+        <!-- Übersicht (nur Anzeige) -->
         <div class="dual-cards">
-          <button class="metric-card work" data-goto="settings" aria-label="Arbeitszeit in den Einstellungen ändern">
+          <div class="metric-card work">
             <span class="metric-eyebrow work-c">Arbeit</span>
             <span class="metric-val" id="setupWork">02:00</span>
-          </button>
-          <button class="metric-card rest" data-goto="settings" aria-label="Pausenzeit in den Einstellungen ändern">
+          </div>
+          <div class="metric-card rest">
             <span class="metric-eyebrow rest-c">Pause</span>
             <span class="metric-val" id="setupRest">01:00</span>
-          </button>
-        </div>
-
-        <div class="stepper-row">
-          <div>
-            <div class="metric-eyebrow muted">Runden</div>
-            <div class="stepper-label"><span id="setupRounds">8</span> × Rounds</div>
-          </div>
-          <div class="stepper">
-            <button class="round-btn" data-step="rounds" data-dir="-1" aria-label="weniger Runden">−</button>
-            <button class="round-btn" data-step="rounds" data-dir="1" aria-label="mehr Runden">+</button>
           </div>
         </div>
 
-        <div class="row-between mt24">
-          <div class="eyebrow">Presets · gespeichert</div>
-          <button class="btn-dashed" id="savePresetSetup">+ Speichern</button>
+        <div class="overview-row">
+          <div class="ov-item"><div class="metric-eyebrow muted">Runden</div><div class="ov-val" id="ovRounds">8</div></div>
+          <div class="ov-item"><div class="metric-eyebrow muted">Sets</div><div class="ov-val" id="ovSets">2</div></div>
+          <div class="ov-item"><div class="metric-eyebrow muted">Große Pause</div><div class="ov-val" id="ovBigBreak">05:00</div></div>
         </div>
-        <div class="preset-strip" id="presetStrip"></div>
 
         <div class="row-between mt24">
           <div class="eyebrow" id="sequenceLabel">Ablauf · 52:00 total</div>
           <div class="eyebrow dim" id="sequenceSets">2 Sets × 8</div>
         </div>
         <div class="sequence-list" id="sequenceList"></div>
-
-        <div class="option-row">
-          <div>
-            <div class="opt-title">Große Pause zwischen Sets</div>
-            <div class="opt-sub" id="bigBreakSub">Nach 8 Runden 05:00 Pause, dann nächstes Set</div>
-          </div>
-          <button class="switch" id="toggleBigBreak" role="switch" aria-checked="true"><span class="knob"></span></button>
-        </div>
-
-        <div class="option-row">
-          <div>
-            <div class="opt-title">Auto-Play · Nonstop</div>
-            <div class="opt-sub">Aus = manuell Pause/Start drücken</div>
-          </div>
-          <button class="switch" id="toggleAuto" role="switch" aria-checked="true"><span class="knob"></span></button>
-        </div>
 
         <div class="forecast" id="forecast">
           <div class="row-center-gap">
@@ -117,6 +91,11 @@
           <div class="fm-title">Manueller Modus · keine Zeitprognose</div>
           <div class="fm-sub">Du steuerst jede Phase selbst mit Pause/Start.</div>
         </div>
+
+        <button class="settings-link" id="openSettings2">
+          <span>Zeiten, Runden &amp; Programm anpassen</span>
+          <span class="settings-link-arrow">→</span>
+        </button>
       </section>
 
       <!-- ============ TRAINING ============ -->
@@ -256,7 +235,11 @@
           <button class="icon-btn round" id="closeSettings" aria-label="Schließen">×</button>
         </header>
 
-        <div class="sec-label work-c">Training</div>
+        <div class="sec-label work-c">Programm</div>
+        <div class="prog-note">Gespeichertes Programm wählen — oder unten die aktuelle Konfiguration als Preset sichern.</div>
+        <div class="preset-strip" id="presetStrip"></div>
+
+        <div class="sec-label work-c mt24">Training</div>
         <div class="group">
           <div class="grp-row">
             <div><div class="opt-title">Arbeitszeit</div><div class="opt-sub">pro Runde</div></div>
@@ -297,6 +280,18 @@
               <span class="time-val gold-c editable" id="stBigBreak" data-edit="bigbreak" role="button" tabindex="0">05:00</span>
               <button class="round-btn gold" data-step="bigbreak" data-dir="1">+</button>
             </div>
+          </div>
+        </div>
+
+        <div class="sec-label rest-c">Ablauf</div>
+        <div class="group">
+          <div class="grp-row">
+            <div><div class="opt-title">Auto-Play · Nonstop</div><div class="opt-sub">Aus = manuell Pause/Start drücken</div></div>
+            <button class="switch" data-cfgtoggle="autoPlay" role="switch"><span class="knob"></span></button>
+          </div>
+          <div class="grp-row last">
+            <div><div class="opt-title">Große Pause aktiv</div><div class="opt-sub" id="bigBreakSub">Zwischen Sets</div></div>
+            <button class="switch gold" data-cfgtoggle="bigBreakOn" role="switch"><span class="knob"></span></button>
           </div>
         </div>
 

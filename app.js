@@ -376,17 +376,14 @@
     },
 
     // -------- SETUP --------
+    // Home = read-only overview only. All editing lives in Settings.
     renderSetup() {
+      $('#setupTitle').textContent = currentProgramName();
       $('#setupWork').textContent = fmt(config.workSec);
       $('#setupRest').textContent = fmt(config.restSec);
-      $('#setupRounds').textContent = config.roundsPerSet;
-
-      // big break / auto switches
-      $('#toggleBigBreak').setAttribute('aria-checked', String(config.bigBreakOn));
-      $('#toggleAuto').setAttribute('aria-checked', String(config.autoPlay));
-      $('#bigBreakSub').textContent = `Nach ${config.roundsPerSet} Runden ${fmt(config.bigBreakSec)} Pause, dann nächstes Set`;
-
-      this.renderPresets();
+      $('#ovRounds').textContent = config.roundsPerSet;
+      $('#ovSets').textContent = config.sets;
+      $('#ovBigBreak').textContent = (config.bigBreakOn && config.sets > 1) ? fmt(config.bigBreakSec) : '—';
       this.renderSequence();
       this.renderForecast();
     },
@@ -616,10 +613,16 @@
       $('#stRounds').textContent = config.roundsPerSet;
       $('#stSets').textContent = config.sets;
       $('#stBigBreak').textContent = fmt(config.bigBreakSec);
+      $('#bigBreakSub').textContent = `Nach ${config.roundsPerSet} Runden ${fmt(config.bigBreakSec)} Pause zwischen Sets`;
       $$('.switch[data-toggle]').forEach(sw => {
         const key = sw.getAttribute('data-toggle');
         sw.setAttribute('aria-checked', String(!!settings[key]));
       });
+      $$('.switch[data-cfgtoggle]').forEach(sw => {
+        const key = sw.getAttribute('data-cfgtoggle');
+        sw.setAttribute('aria-checked', String(!!config[key]));
+      });
+      this.renderPresets();
     },
 
     // -------- wiring --------
@@ -640,22 +643,17 @@
         });
       });
 
-      // setup cards route to Settings (time is edited only there)
-      $$('[data-goto]').forEach(el => {
-        el.addEventListener('click', () => {
-          this.renderSettings();
-          this.show(el.getAttribute('data-goto'));
-        });
-      });
+      // "adjust in settings" link on the overview
+      $('#openSettings2').addEventListener('click', () => { this.renderSettings(); this.show('settings'); });
 
-      // setup toggles
-      $('#toggleBigBreak').addEventListener('click', () => {
-        config.bigBreakOn = !config.bigBreakOn;
-        save(LS.config, config); this.renderSetup();
-      });
-      $('#toggleAuto').addEventListener('click', () => {
-        config.autoPlay = !config.autoPlay;
-        save(LS.config, config); this.renderSetup();
+      // config toggles (Ablauf: Auto-Play, Große Pause) — Settings only
+      $$('.switch[data-cfgtoggle]').forEach(sw => {
+        sw.addEventListener('click', () => {
+          const key = sw.getAttribute('data-cfgtoggle');
+          config[key] = !config[key];
+          save(LS.config, config);
+          this.renderSettings(); this.renderSetup();
+        });
       });
 
       // settings toggles
@@ -672,7 +670,7 @@
       });
 
       // navigation
-      $('#openSettings').addEventListener('click', () => this.show('settings'));
+      $('#openSettings').addEventListener('click', () => { this.renderSettings(); this.show('settings'); });
       $('#closeSettings').addEventListener('click', () => { this.renderSetup(); this.show('setup'); });
       $('#startBtn').addEventListener('click', () => { Audio.unlock(); engine.start(); });
 
@@ -692,7 +690,6 @@
       $('#dnSavePreset').addEventListener('click', () => this.savePreset(''));
 
       // preset saving
-      $('#savePresetSetup').addEventListener('click', () => { this.show('settings'); $('#presetName').focus(); });
       $('#savePresetBtn').addEventListener('click', () => {
         const name = $('#presetName').value.trim();
         this.savePreset(name);
@@ -841,6 +838,10 @@
     return n.workSec === c.workSec && n.restSec === c.restSec && n.roundsPerSet === c.roundsPerSet && n.sets === c.sets;
   }
   function isDefaultPreset(id) { return DEFAULT_PRESETS.some(p => p.id === id); }
+  function currentProgramName() {
+    const m = presets.find(p => sameConfig(p, config));
+    return m ? m.name : 'Eigenes Workout';
+  }
   function timeRange(s) {
     const start = new Date(s.when - s.actual * 1000);
     const end = new Date(s.when);
