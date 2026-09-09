@@ -78,7 +78,18 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
 .uploadbtn{display:block;width:100%;text-align:center;padding:10px 12px;border:1px dashed var(--accent);
   border-radius:10px;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:13px;cursor:pointer}
 .uploadbtn:hover{background:var(--surface-2)}
-#uploadmsg{font-size:12px;margin-top:6px}
+/* Excel-Upload als einladende Drop-Zone (Design) */
+.dropzone{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;cursor:pointer;
+  border:2px dashed var(--hair);border-radius:14px;background:var(--surface-2);padding:26px 20px;
+  transition:border-color .12s ease,background .12s ease}
+.dropzone:hover{border-color:var(--accent);background:var(--accent-soft)}
+.dropzone.drag{border-color:var(--accent);background:var(--accent-soft)}
+.dropzone .dz-ic{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:26px;
+  background:linear-gradient(135deg,#f5c518 0%,#3aa06c 100%);color:#1a1815;margin-bottom:2px}
+.dropzone .dz-title{font-weight:600;font-size:15px;color:var(--ink)}
+.dropzone .dz-title u{color:var(--accent);text-decoration:none}
+.dropzone .dz-sub{font-size:12.5px;color:var(--muted)}
+#uploadmsg{font-size:12.5px;margin-top:10px;text-align:center}
 #uploadmsg.ok{color:var(--gruen)} #uploadmsg.err{color:var(--rot)}
 .setrow{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:11px 0;border-top:1px solid var(--hair)}
 .setrow .setname{min-width:210px;font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:8px}
@@ -90,6 +101,14 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
 .gearbtn{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:9px;
   padding:8px 14px;font:inherit;font-weight:600;font-size:13px;cursor:pointer}
 .gearbtn:hover{background:var(--surface)}
+/* Kommando-Leiste (Design): $ role: … · range: …  |  Tabs + Einstellungen */
+.cmdbar{background:var(--surface);border:1px solid var(--hair);border-radius:11px;
+  padding:9px 16px;box-shadow:var(--shadow);gap:12px 16px}
+.cmdmeta{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-2);
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cmdmeta .p{color:var(--muted)}
+.cmdmeta .v{color:var(--accent);font-weight:600}
+.cmdright{display:flex;gap:8px;align-items:center;margin-left:auto}
 .modebar{display:inline-flex;border:1px solid var(--hair);border-radius:9px;overflow:hidden;background:var(--surface)}
 .modebar button{border:none;background:none;color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer}
 .modebar button.on{background:var(--ink);color:var(--surface)}
@@ -127,17 +146,26 @@ h2.node{font-size:27px;margin:2px 0 3px;letter-spacing:-.02em;text-wrap:balance}
 .subline .pill{display:inline-block;background:var(--surface);border:1px solid var(--hair);border-radius:6px;
   padding:1px 7px;font-size:12px;margin-left:2px}
 
-/* KPI tiles */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:26px 44px;
-  margin:6px 0 4px;padding-bottom:24px;border-bottom:1px solid var(--hair)}
-.kpi .k-lbl{display:flex;align-items:center;gap:7px;color:var(--ink-2);font-size:12.5px;font-weight:500;margin-bottom:6px}
-.kpi .dot{width:11px;height:11px;border-radius:50%;flex:none}
-.kpi .k-val{font-size:32px;font-weight:600;letter-spacing:-.02em;line-height:1;color:var(--ink)}
-.kpi .k-val .u{font-size:14px;color:var(--muted);font-weight:500;margin-left:3px}
-.kpi .k-delta{display:inline-flex;align-items:center;font-size:12px;margin-top:9px;font-weight:600;
+/* KPI-Hierarchie: eine Hero-Zahl + kompakte Unterzeile (Design-Layout) */
+.kpis{margin:8px 0 4px;padding-bottom:22px;border-bottom:1px solid var(--hair)}
+.kpi-hero .k-lbl{display:flex;align-items:center;gap:7px;color:var(--ink-2);font-size:12.5px;font-weight:500;margin-bottom:8px}
+.dot{width:11px;height:11px;border-radius:50%;flex:none}
+.hero-row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.hero-num{font-size:46px;font-weight:600;letter-spacing:-.03em;line-height:1;color:var(--ink)}
+.hero-num .u{font-size:16px;color:var(--muted);font-weight:500;margin-left:4px}
+.kpi-sub{display:flex;flex-wrap:wrap;gap:22px 40px;margin-top:20px;border-top:1px solid var(--hair);padding-top:16px}
+.subcell{min-width:118px}
+.sub-lbl{display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);font-weight:600;margin-bottom:6px}
+.sub-lbl .dot{width:9px;height:9px}
+.sub-val{font-size:22px;font-weight:600;letter-spacing:-.01em;line-height:1;color:var(--ink)}
+.sub-val .u{font-size:12px;color:var(--muted);font-weight:500;margin-left:2px}
+.k-delta{display:inline-flex;align-items:center;font-size:12px;font-weight:600;
   padding:3px 10px;border-radius:100px;line-height:1.35}
-.kpi .k-delta.ok{color:var(--gruen);background:var(--ok-bg)}
-.kpi .k-delta.bad{color:var(--rot);background:var(--bad-bg)}
+.hero-row .k-delta{margin-top:0}
+.subcell .k-delta{font-size:11px;padding:2px 8px;margin-top:7px}
+.k-delta.ok{color:var(--gruen);background:var(--ok-bg)}
+.k-delta.bad{color:var(--rot);background:var(--bad-bg)}
 .wthr{margin:16px 0 6px;padding:11px 15px;background:var(--surface-2);border:1px solid var(--hair);
   border-radius:10px;font-size:13px;color:var(--ink-2);display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .wthr b{color:var(--ink);font-weight:600}
@@ -258,12 +286,15 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
 
   <main class="main">
     <div class="crumbs" id="crumbs"></div>
-    <div class="topbar">
-      <div class="modebar">
-        <button id="mode-u" class="on" onclick="setMode('uebersicht')">Übersicht</button>
-        <button id="mode-v" onclick="setMode('vergleich')">Vergleich</button>
+    <div class="topbar cmdbar">
+      <span class="cmdmeta" id="cmdmeta"></span>
+      <div class="cmdright">
+        <div class="modebar">
+          <button id="mode-u" class="on" onclick="setMode('uebersicht')">Übersicht</button>
+          <button id="mode-v" onclick="setMode('vergleich')">Vergleich</button>
+        </div>
+        <button class="gearbtn" id="gearbtn" title="Einstellungen &amp; Excel-Upload">⚙️ Einstellungen</button>
       </div>
-      <button class="gearbtn" id="gearbtn" title="Einstellungen &amp; Excel-Upload">⚙️ Einstellungen</button>
     </div>
     <div id="normal">
     <div class="daterange">
@@ -351,7 +382,12 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
     </div>
     <h4 style="margin-top:24px">📤 Excel aktualisieren</h4>
     <p>Neue oder erweiterte Excel-Datei laden – die Zahlen und Diagramme passen sich automatisch an. Der Import <b>ersetzt</b> die aktuell gezeigten Daten (keine Doppelzählung).</p>
-    <label class="uploadbtn">📤 Excel-Datei wählen<input type="file" id="xlsxfile" accept=".xlsx" hidden></label>
+    <label class="dropzone" id="dropzone">
+      <div class="dz-ic">📥</div>
+      <div class="dz-title">Excel-Datei hierher ziehen oder <u>auswählen</u></div>
+      <div class="dz-sub">Blätter „Bonierungen" &amp; „Ausgaben" · .xlsx</div>
+      <input type="file" id="xlsxfile" accept=".xlsx" hidden>
+    </label>
     <div id="uploadmsg"></div>
   </div>
 </div>
@@ -1044,27 +1080,46 @@ function renderHead(){
   const n=node();document.getElementById("nodetitle").textContent=n.titel==="Gesamt"?"Gesamt · Unternehmen":n.titel;
   document.getElementById("subline").innerHTML=
     `Sicht <b>${ROLLES[state.role].beschreibung}</b> · Ebene ${n.ebene} <span class="pill">${EBN[n.ebene]||""}</span>`;
+  renderCmdMeta();
 }
+const ROLLE_LABEL={geschaeftsfuehrung:"Geschäftsführung",standleitung_bahnhof:"Standleitung Bahnhof",controlling:"Controlling"};
+function rolleLabel(k){return ROLLE_LABEL[k]||k.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());}
+function renderCmdMeta(){
+  const el=document.getElementById("cmdmeta");if(!el)return;
+  const roleTxt=rolleLabel(state.role);
+  const rangeTxt=(state.from&&state.to)?fmtDE(state.from)+" – "+fmtDE(state.to):"";
+  el.innerHTML=`<span class="p">$</span><span class="p">rolle:</span><span class="v">${roleTxt}</span>`+
+    (rangeTxt?`<span class="p">·</span><span class="p">zeitraum:</span><span class="v">${rangeTxt}</span>`:"");
+}
+// Delta-Pille je Kennzahl: % als Prozentpunkte, Ergebnis absolut in €, sonst relativ.
+function kpiDelta(k){
+  if(k.prev==null)return "";
+  let d,txt=null;
+  if(EINHEIT[k.id]==="%"){d=k.wert-k.prev;txt=(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %p";}
+  else if(k.id==="ergebnis_eur"){d=k.wert-k.prev;txt=(d>=0?"▲ ":"▼ ")+fmtShort(Math.abs(d),"umsatz_eur");}
+  else if(k.prev!==0){d=(k.wert-k.prev)/Math.abs(k.prev)*100;txt=(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %";}
+  if(txt==null)return "";
+  const gut=(d>=0)===(k.richtung==="groesser_ist_besser");
+  return `<div class="k-delta ${gut?"ok":"bad"}">${txt} ${node().vergleich_label}</div>`;
+}
+function kpiNum(k){const val=fmt(k.wert,k.id).split(" ");return val.slice(0,-1).join(" ")||val[0];}
 function renderKPIs(){
   const n=node(),el=document.getElementById("kpis");
-  if(!n.kacheln.length){el.innerHTML=`<div class="kpi">Für diesen Knoten liegen keine Kennzahlen vor.</div>`;return;}
-  el.innerHTML=n.kacheln.map(k=>{
-    const val=fmt(k.wert,k.id).split(" ");const num=val.slice(0,-1).join(" ")||val[0];
-    const unit=EINHEIT[k.id]||"";
-    // Delta sinnvoll je Kennzahl: % nur wenn Basis stabil; Prozent-Kennzahlen als Prozentpunkte; Ergebnis absolut in €
-    let delta="";
-    if(k.prev!=null){
-      let d,txt;
-      if(EINHEIT[k.id]==="%"){d=k.wert-k.prev;txt=(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %p";}
-      else if(k.id==="ergebnis_eur"){d=k.wert-k.prev;txt=(d>=0?"▲ ":"▼ ")+fmtShort(Math.abs(d),"umsatz_eur");}
-      else if(k.prev!==0){d=(k.wert-k.prev)/Math.abs(k.prev)*100;txt=(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %";}
-      if(txt!=null){const gut=(d>=0)===(k.richtung==="groesser_ist_besser");
-        delta=`<div class="k-delta ${gut?"ok":"bad"}">${txt} ${node().vergleich_label}</div>`;}
-    }
-    const dot=k.ampel?`<span class="dot" style="background:${statusCol(k.ampel)}"></span>`:"";
-    const tip=GLOSS[k.id]?` title="${GLOSS[k.id]}"`:"";
-    return `<div class="kpi"><div class="k-lbl"${tip} style="${GLOSS[k.id]?"cursor:help;text-decoration:underline dotted var(--hair);text-underline-offset:3px":""}">${dot}${k.name}</div>
-      <div class="k-val mono">${num}<span class="u">${unit}</span></div>${delta}</div>`;}).join("");
+  if(!n.kacheln.length){el.innerHTML=`<div class="kpi-hero">Für diesen Knoten liegen keine Kennzahlen vor.</div>`;return;}
+  // Hero = erste (wichtigste) Kennzahl groß; die übrigen kompakt in einer Unterzeile.
+  const hero=n.kacheln[0],rest=n.kacheln.slice(1);
+  const dotOf=k=>k.ampel?`<span class="dot" style="background:${statusCol(k.ampel)}"></span>`:"";
+  const tipOf=k=>GLOSS[k.id]?` title="${GLOSS[k.id]}"`:"";
+  const cursorOf=k=>GLOSS[k.id]?"cursor:help;text-decoration:underline dotted var(--hair);text-underline-offset:3px":"";
+  const heroHTML=`<div class="kpi-hero">
+    <div class="k-lbl"${tipOf(hero)} style="${cursorOf(hero)}">${dotOf(hero)}${hero.name}</div>
+    <div class="hero-row"><span class="hero-num mono">${kpiNum(hero)}<span class="u">${EINHEIT[hero.id]||""}</span></span>${kpiDelta(hero)}</div>
+  </div>`;
+  const subHTML=rest.length?`<div class="kpi-sub">${rest.map(k=>`<div class="subcell">
+      <div class="sub-lbl"${tipOf(k)} style="${cursorOf(k)}">${dotOf(k)}${k.name}</div>
+      <div class="sub-val mono">${kpiNum(k)}<span class="u">${EINHEIT[k.id]||""}</span></div>${kpiDelta(k)}
+    </div>`).join("")}</div>`:"";
+  el.innerHTML=heroHTML+subHTML;
 }
 function renderWeatherLine(){
   const w=node().wetter,el=document.getElementById("wthrline");
@@ -1306,6 +1361,12 @@ document.getElementById("themebtn").onclick=()=>{const r=document.documentElemen
   r.setAttribute("data-theme",dark?"light":"dark");render();};
 initDates();initRoles();render();
 document.getElementById("xlsxfile").addEventListener("change",e=>{if(e.target.files[0])importExcel(e.target.files[0]);});  // Text sofort; Diagramme sobald Plotly geladen ist
+(function(){const dz=document.getElementById("dropzone");if(!dz)return;  // Drag & Drop für die Upload-Zone
+  const stop=e=>{e.preventDefault();e.stopPropagation();};
+  ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{stop(e);dz.classList.add("drag");}));
+  ["dragleave","dragend"].forEach(ev=>dz.addEventListener(ev,e=>{stop(e);dz.classList.remove("drag");}));
+  dz.addEventListener("drop",e=>{stop(e);dz.classList.remove("drag");
+    const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)importExcel(f);});})();
 window.goto=goto;window.drill=drill;window.setProd=setProd;window.setGran=setGran;window.setRange=setRange;window.setMode=setMode;window.setCmp=setCmp;
 window.setPeriod=setPeriod;window.addPeriodMonth=addPeriodMonth;window.addPeriodFull=addPeriodFull;window.removePeriod=removePeriod;
 window.setSplitMetric=setSplitMetric;window.setSplitView=setSplitView;
