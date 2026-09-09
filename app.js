@@ -253,9 +253,9 @@
       this.remaining = nx.dur;
 
       // feedback + view for the phase we just entered
-      if (nx.type === 'work') { Audio.go(); vibrate([60, 40, 60]); speak('Arbeit, los!'); }
-      else if (nx.type === 'rest') { Audio.rest(); vibrate(90); speak('Pause'); }
-      else if (nx.type === 'bigbreak') { Audio.big(); vibrate([80, 60, 80, 60, 120]); speak('Grosse Pause'); }
+      if (nx.type === 'work') { Audio.go(); vibrate([120, 60, 200]); speak('Belastung, los!'); }
+      else if (nx.type === 'rest') { Audio.rest(); vibrate(250); speak('Pause'); }
+      else if (nx.type === 'bigbreak') { Audio.big(); vibrate([120, 80, 120, 80, 250]); speak('Grosse Pause'); }
 
       ui.showFor(nx);
       if (!config.autoPlay && !skipped) this.pause();
@@ -512,7 +512,7 @@
       const phaseColor = isWork ? 'var(--work)' : 'var(--rest)';
       $('#phaseDot').style.background = isWork ? '#FF5722' : '#00897B';
       $('#phaseDot').style.boxShadow = `0 0 14px ${isWork ? '#FF5722' : '#00897B'}`;
-      $('#phaseLabel').textContent = isWork ? 'ARBEIT' : 'PAUSE';
+      $('#phaseLabel').textContent = isWork ? 'BELASTUNG' : 'PAUSE';
       $('#timerSub').textContent = isWork ? 'GO · PUSH' : 'RECOVER · BREATHE';
 
       const gRound = isWork ? cur.round : cur.round;
@@ -565,7 +565,7 @@
       if (!nx) return 'Fertig';
       if (nx.type === 'rest') return `${fmt(nx.dur)} Pause`;
       if (nx.type === 'bigbreak') return `Große Pause ${fmt(nx.dur)}`;
-      if (nx.type === 'work') return `Runde ${nx.round} · ${fmt(nx.dur)} Arbeit`;
+      if (nx.type === 'work') return `Runde ${nx.round} · ${fmt(nx.dur)} Belastung`;
       return '—';
     },
 
@@ -674,7 +674,13 @@
           save(LS.settings, settings);
           this.renderSettings();
           if (key === 'sound' && settings.sound) Audio.go();
-          if (key === 'vibration' && settings.vibration) vibrate(60);
+          if (key === 'vibration' && settings.vibration) {
+            if (!('vibrate' in navigator)) {
+              toast('Vibration wird auf diesem Gerät nicht unterstützt (z. B. iPhone).');
+            } else if (!navigator.vibrate(60)) {
+              toast('Vibration ist hier blockiert — in der installierten App (Android) testen.');
+            }
+          }
           if (key === 'keepDisplay') { settings.keepDisplay ? (engine.running && requestWakeLock()) : releaseWakeLock(); }
         });
       });
@@ -769,7 +775,7 @@
   function openPicker(which) {
     pickerTarget = which;
     const total = which === 'work' ? config.workSec : which === 'rest' ? config.restSec : config.bigBreakSec;
-    $('#pickerTitle').textContent = which === 'work' ? 'Arbeit' : which === 'rest' ? 'Pause' : 'Große Pause';
+    $('#pickerTitle').textContent = which === 'work' ? 'Belastung' : which === 'rest' ? 'Pause' : 'Große Pause';
     buildWheel($('#wheelMin'), 60, Math.floor(total / 60), 'Min');
     buildWheel($('#wheelSec'), 60, total % 60, 'Sek');
     const bd = $('#pickerBackdrop');
