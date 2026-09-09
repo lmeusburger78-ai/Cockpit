@@ -366,18 +366,13 @@
       else { this.show('training'); }
     },
 
-    // Abort the running workout and return to the overview.
+    // Abort the running workout and return to the overview immediately.
+    // (No native confirm() — it is blocked inside sandboxed frames.)
     exitTraining() {
-      const wasRunning = engine.running;
       engine.pause();
-      const ok = confirm('Training beenden und zurück zum Start?');
-      if (ok) {
-        engine.reset();
-        this.renderSetup();
-        this.show('setup');
-      } else if (wasRunning) {
-        engine.play();
-      }
+      engine.reset();
+      this.renderSetup();
+      this.show('setup');
     },
 
     // -------- status bar clock --------
@@ -409,34 +404,30 @@
       strip.innerHTML = '';
       if (!presets.length) {
         const empty = document.createElement('div');
-        empty.className = 'pc-rounds';
-        empty.style.padding = '10px 2px';
-        empty.textContent = 'Noch keine Presets gespeichert';
+        empty.className = 'pc-empty';
+        empty.textContent = 'Noch keine Programme gespeichert';
         strip.appendChild(empty);
         return;
       }
       presets.forEach(p => {
-        const dot = p.workSec <= 45 ? 'var(--rest)' : (p.restSec === 0 ? 'var(--gold)' : 'var(--work)');
-        const card = document.createElement('button');
+        const total = totalWorkoutSeconds(normalizeCfg(p));
+        const roundsStr = (p.sets && p.sets > 1) ? `${p.roundsPerSet}×${p.sets}` : `${p.roundsPerSet}`;
+        const card = document.createElement('div');
         card.className = 'preset-card' + (sameConfig(p, config) ? ' selected' : '');
+        card.setAttribute('role', 'button');
+        card.tabIndex = 0;
         card.innerHTML = `
-          <div class="pc-head">
-            <div class="pc-name">${escapeHtml(p.name)}</div>
-            <span class="dot" style="background:${dot};box-shadow:0 0 8px ${dot};"></span>
+          <div class="pc-top">
+            <span class="pc-name">${escapeHtml(p.name)}</span>
+            <button class="pc-del" aria-label="Programm entfernen" title="Entfernen">×</button>
           </div>
-          <div class="pc-tags">
-            <span class="pc-tag w">Arbeit ${fmt(p.workSec)}</span>
-            <span class="pc-tag r">Pause ${fmt(p.restSec)}</span>
-          </div>
-          <div class="pc-foot">
-            <span class="pc-rounds">${p.roundsPerSet * (p.sets || 1)} Runden</span>
-            <span class="pc-total">${fmtLong(totalWorkoutSeconds(normalizeCfg(p)))}</span>
-          </div>`;
+          <div class="pc-meta">${roundsStr} Runden · ${fmt(p.workSec)}/${fmt(p.restSec)} · ${fmtLong(total)}</div>`;
         card.addEventListener('click', () => this.applyPreset(p));
-        // long-press / right-click delete for user presets
-        if (!isDefaultPreset(p.id)) {
-          card.addEventListener('contextmenu', (e) => { e.preventDefault(); this.deletePreset(p.id); });
-        }
+        card.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.applyPreset(p); });
+        card.querySelector('.pc-del').addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.deletePreset(p.id, p.name);
+        });
         strip.appendChild(card);
       });
     },
@@ -445,13 +436,16 @@
       config = Object.assign({}, config, normalizeCfg(p));
       save(LS.config, config);
       this.renderSetup(); this.renderSettings();
-      toast(`Preset „${p.name}" geladen`);
+      toast(`Programm „${p.name}" geladen`);
     },
-    deletePreset(id) {
-      presets = presets.filter(p => p.id !== id);
-      save(LS.presets, presets);
-      this.renderPresets();
-      toast('Preset gelöscht');
+    deletePreset(id, name) {
+      uiConfirm(`Programm „${name}" entfernen?`, 'Entfernen', () => {
+        presets = presets.filter(p => p.id !== id);
+        save(LS.presets, presets);
+        this.renderPresets();
+        this.renderSetup();
+        toast('Programm entfernt');
+      });
     },
 
     renderSequence() {
@@ -527,8 +521,8 @@
       $('#phaseTotal').textContent = fmt(cur.dur);
 
       // play/pause icon
-      $('#iconPause').hidden = !engine.running;
-      $('#iconPlay').hidden = engine.running;
+      $('#iconPause').toggleAttribute('hidden', !engine.running);
+      $('#iconPlay').toggleAttribute('hidden', engine.running);
 
       // next label
       $('#nextLabel').textContent = this.nextLabel();
@@ -556,8 +550,8 @@
       $('#ringCenter').classList.toggle('warn', isWarning());
 
       $('#timerBig').textContent = fmt(engine.remaining);
-      $('#iconPause').hidden = !engine.running;
-      $('#iconPlay').hidden = engine.running;
+      $('#iconPause').toggleAttribute('hidden', !engine.running);
+      $('#iconPlay').toggleAttribute('hidden', engine.running);
 
       // ring progress
       const pct = clamp(engine.remaining / cur.dur, 0, 1);
@@ -721,13 +715,14 @@
 
       // reset all
       $('#resetAllBtn').addEventListener('click', () => {
-        if (!confirm('Zeiten, Presets und Signal-Optionen auf Auslieferungszustand zurücksetzen?')) return;
-        config = Object.assign({}, DEFAULT_CONFIG);
-        settings = Object.assign({}, DEFAULT_SETTINGS);
-        presets = DEFAULT_PRESETS.slice();
-        save(LS.config, config); save(LS.settings, settings); save(LS.presets, presets);
-        this.renderSetup(); this.renderSettings();
-        toast('Zurückgesetzt');
+        uiConfirm('Zeiten, Presets und Signal-Optionen auf Auslieferungszustand zurücksetzen?', 'Zurücksetzen', () => {
+          config = Object.assign({}, DEFAULT_CONFIG);
+          settings = Object.assign({}, DEFAULT_SETTINGS);
+          presets = DEFAULT_PRESETS.slice();
+          save(LS.config, config); save(LS.settings, settings); save(LS.presets, presets);
+          this.renderSetup(); this.renderSettings();
+          toast('Zurückgesetzt');
+        });
       });
 
       // keyboard shortcuts (desktop)
@@ -841,6 +836,27 @@
   }
 
   // ---------- small utils ----------
+  // In-app confirmation (native confirm() is blocked in sandboxed frames).
+  function uiConfirm(msg, okLabel, onYes) {
+    const bd = $('#confirmBackdrop');
+    $('#confirmMsg').textContent = msg;
+    $('#confirmOk').textContent = okLabel || 'OK';
+    bd.hidden = false;
+    requestAnimationFrame(() => bd.classList.add('open'));
+    const close = () => {
+      bd.classList.remove('open');
+      setTimeout(() => { bd.hidden = true; }, 200);
+      $('#confirmOk').removeEventListener('click', yes);
+      $('#confirmCancel').removeEventListener('click', close);
+      bd.removeEventListener('click', onBackdrop);
+    };
+    const yes = () => { close(); onYes(); };
+    const onBackdrop = (e) => { if (e.target === bd) close(); };
+    $('#confirmOk').addEventListener('click', yes);
+    $('#confirmCancel').addEventListener('click', close);
+    bd.addEventListener('click', onBackdrop);
+  }
+
   function toast(msg) {
     const t = $('#toast');
     t.textContent = msg; t.hidden = false;
