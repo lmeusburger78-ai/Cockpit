@@ -183,8 +183,45 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
 /* =========================================================
    SETUP
    ========================================================= */
-.setup-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+.setup-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.head-titles { min-width: 0; }
+.head-titles .title-lg { overflow-wrap: anywhere; }
 .head-actions { display: flex; align-items: center; gap: 10px; }
+
+/* Settings gear — far right, refined */
+.gear-btn {
+  flex: none; width: 48px; height: 48px; border-radius: 16px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.85); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  transition: background .2s, border-color .2s, transform .2s;
+}
+.gear-btn:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.2); }
+.gear-btn:active { transform: scale(.94) rotate(20deg); }
+
+/* Prominent Start button — big, content left, meta right */
+.btn-start {
+  width: 100%; margin-bottom: 24px; cursor: pointer;
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 22px; border: none; border-radius: 20px;
+  background: linear-gradient(135deg, var(--accent) 0%, #E64A19 100%);
+  color: #fff; text-align: left;
+  box-shadow: 0 14px 38px color-mix(in srgb, var(--accent) 42%, transparent),
+              inset 0 1px 0 rgba(255,255,255,.25);
+  transition: transform .12s, box-shadow .2s;
+}
+.btn-start:hover { box-shadow: 0 18px 46px color-mix(in srgb, var(--accent) 52%, transparent), inset 0 1px 0 rgba(255,255,255,.25); }
+.btn-start:active { transform: scale(.985); }
+.btn-start-icon {
+  flex: none; width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(255,255,255,.22); display: flex; align-items: center; justify-content: center;
+}
+.btn-start-icon svg { margin-left: 2px; }
+.btn-start-text { font: 800 22px/1 var(--sans); letter-spacing: .02em; }
+.btn-start-meta {
+  margin-left: auto; font: 700 13px/1 var(--mono); letter-spacing: .06em;
+  color: rgba(255,255,255,.85); font-variant-numeric: tabular-nums;
+}
 
 .dual-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
 .metric-card {
@@ -226,13 +263,11 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
 .sec-label.mt24 { margin-top: 24px; }
 
 .preset-strip {
-  display: flex; gap: 8px; overflow-x: auto;
-  margin: 12px -24px 0; padding: 2px 24px 10px;
-  scroll-snap-type: x mandatory;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  margin: 0 0 4px;
 }
-.preset-strip::-webkit-scrollbar { height: 0; }
 .preset-card {
-  flex: none; width: 180px; scroll-snap-align: start; cursor: pointer;
+  width: auto; cursor: pointer;
   background: #151515; border: 1px solid rgba(255,255,255,.08);
   border-radius: 14px; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 10px; color: #fff; text-align: left;
@@ -241,7 +276,7 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
 .preset-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .pc-head { display: flex; align-items: center; justify-content: space-between; }
 .pc-name { font: 700 15px/1.2 var(--sans); }
-.pc-tags { display: flex; gap: 6px; font: 600 10px/1 var(--mono); letter-spacing: .14em; }
+.pc-tags { display: flex; flex-wrap: wrap; gap: 6px; font: 600 10px/1 var(--mono); letter-spacing: .14em; }
 .pc-tag { padding: 4px 8px; border-radius: 6px; }
 .pc-tag.w { background: rgba(255,87,34,.15); color: #FF9575; }
 .pc-tag.r { background: rgba(0,137,123,.15); color: #4DB6AC; }
@@ -309,13 +344,20 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
 .tr-corner { position: absolute; top: 64px; z-index: 3; }
 .tr-corner.tl { left: 24px; }
 .tr-corner.tr { right: 24px; text-align: right; font: 600 11px/1.4 var(--mono); letter-spacing: .22em; text-transform: uppercase; }
-.phase-dot-ring {
+/* Exit / abort → back to home */
+.tr-exit {
   width: 44px; height: 44px; border-radius: 50%;
-  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
-  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.8); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  transition: background .2s, transform .15s;
 }
-.phase-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--work); box-shadow: 0 0 14px var(--work); }
-.tr-phase { color: rgba(255,255,255,.55); }
+.tr-exit:hover { background: rgba(255,255,255,.1); }
+.tr-exit:active { transform: scale(.92); }
+.bb-exit { position: absolute; top: 60px; left: 24px; z-index: 4; }
+
+.tr-phase { display: inline-flex; align-items: center; gap: 7px; color: rgba(255,255,255,.55); }
+.phase-dot-inline { width: 9px; height: 9px; border-radius: 50%; background: var(--work); box-shadow: 0 0 12px var(--work); flex: none; }
 .tr-round { color: #fff; font-size: 13px; margin-top: 6px; }
 .round-now { font-size: 20px; font-weight: 800; }
 .round-tot { color: rgba(255,255,255,.4); }
@@ -389,6 +431,8 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
   transition: background .3s, color .3s, box-shadow .3s;
 }
 .tp-play:active { transform: scale(.96); }
+.tp-btn:focus, .tp-play:focus, .tr-exit:focus, .chip:focus { outline: none; }
+.tp-btn:focus-visible, .tp-play:focus-visible, .tr-exit:focus-visible, .chip:focus-visible { outline: 2px solid rgba(255,255,255,.55); outline-offset: 3px; }
 .view-training.is-rest .tp-play { background: var(--rest); box-shadow: 0 12px 40px color-mix(in srgb, var(--rest) 45%, transparent), inset 0 -4px 0 rgba(0,0,0,.15); }
 .view-training.running .tp-play { background: #fff; color: #151210; box-shadow: 0 12px 40px rgba(255,255,255,.15), inset 0 -4px 0 rgba(0,0,0,.1); }
 .view-training.warn .tp-play { background: var(--gold); color: #151210; box-shadow: 0 12px 40px rgba(255,215,0,.35), inset 0 -4px 0 rgba(0,0,0,.15); }

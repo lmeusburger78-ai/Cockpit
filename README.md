@@ -12,6 +12,14 @@ dependencies — open `index.html` in any modern browser (or serve the folder).
 - `index.html` — markup for all five screens (Setup, Training, Big Break, Done, Settings) inside an iOS-style device frame.
 - `styles.css` — the dark design system: work `#FF5722`, rest `#00897B`, gold `#FFD700`, Inter + JetBrains Mono.
 - `app.js` — the timer engine, phase-sequence model, audio/haptics, presets and history. Vanilla JS.
+- `manifest.webmanifest`, `sw.js`, `icons/` — PWA: installable to the home screen and fully offline after the first load.
+
+### Install / offline (PWA)
+Served over HTTPS (e.g. GitHub Pages), the app is an installable PWA. On the
+phone, open the page and choose "Add to Home Screen"; a service worker caches
+the app shell so it then works with no internet. To publish via GitHub Pages:
+Repository → Settings → Pages → Source "Deploy from a branch" → pick the branch
+and `/ (root)`.
 
 ### Screens & flow
 1. **Setup** — configure work / rest time, rounds per set, presets, big-break and auto-play toggles, plus a live sequence timeline and nonstop time forecast.

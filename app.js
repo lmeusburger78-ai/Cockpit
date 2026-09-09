@@ -366,6 +366,20 @@
       else { this.show('training'); }
     },
 
+    // Abort the running workout and return to the overview.
+    exitTraining() {
+      const wasRunning = engine.running;
+      engine.pause();
+      const ok = confirm('Training beenden und zurück zum Start?');
+      if (ok) {
+        engine.reset();
+        this.renderSetup();
+        this.show('setup');
+      } else if (wasRunning) {
+        engine.play();
+      }
+    },
+
     // -------- status bar clock --------
     startClock() {
       const upd = () => {
@@ -384,6 +398,8 @@
       $('#ovRounds').textContent = config.roundsPerSet;
       $('#ovSets').textContent = config.sets;
       $('#ovBigBreak').textContent = (config.bigBreakOn && config.sets > 1) ? fmt(config.bigBreakSec) : '—';
+      const total = totalWorkoutSeconds(config);
+      $('#startMeta').textContent = `${fmtLong(total)} · ${config.sets} Set${config.sets > 1 ? 's' : ''}`;
       this.renderSequence();
       this.renderForecast();
     },
@@ -680,6 +696,10 @@
       $('#skipBtn').addEventListener('click', () => engine.skip());
       $$('[data-nav]').forEach(b => b.addEventListener('click', () => engine.jump(b.getAttribute('data-nav'))));
 
+      // exit / abort training → back to home
+      $('#exitBtn').addEventListener('click', () => this.exitTraining());
+      $('#exitBtn2').addEventListener('click', () => this.exitTraining());
+
       // big break
       $('#bbAddBtn').addEventListener('click', () => engine.addTime(60));
       $('#bbSkipBtn').addEventListener('click', () => engine.skip());
@@ -717,6 +737,7 @@
           if (e.code === 'Space') { e.preventDefault(); engine.toggle(); }
           else if (e.code === 'ArrowRight') engine.skip();
           else if (e.code === 'KeyR') engine.resetTimer();
+          else if (e.code === 'Escape') this.exitTraining();
         }
       });
     },
@@ -743,6 +764,7 @@
       presets.push(preset);
       save(LS.presets, presets);
       this.renderPresets();
+      this.renderSetup();
       toast(`„${name}" gespeichert`);
     },
   };
