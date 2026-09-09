@@ -78,17 +78,20 @@ select{width:100%;padding:9px 11px;border:1px solid var(--hair);border-radius:9p
 .uploadbtn{display:block;width:100%;text-align:center;padding:10px 12px;border:1px dashed var(--accent);
   border-radius:10px;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:13px;cursor:pointer}
 .uploadbtn:hover{background:var(--surface-2)}
-/* Excel-Upload als einladende Drop-Zone (Design) */
-.dropzone{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;cursor:pointer;
-  border:2px dashed var(--hair);border-radius:14px;background:var(--surface-2);padding:26px 20px;
+/* Excel-Upload als Datei-Status-Karte (Design) */
+.dz-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600;margin:20px 0 10px}
+.dropzone{display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;cursor:pointer;
+  border:1.5px dashed var(--hair);border-radius:10px;background:var(--surface-2);padding:22px 20px;
   transition:border-color .12s ease,background .12s ease}
-.dropzone:hover{border-color:var(--accent);background:var(--accent-soft)}
+.dropzone:hover{border-color:var(--accent)}
 .dropzone.drag{border-color:var(--accent);background:var(--accent-soft)}
-.dropzone .dz-ic{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:26px;
-  background:linear-gradient(135deg,#f5c518 0%,#3aa06c 100%);color:#1a1815;margin-bottom:2px}
-.dropzone .dz-title{font-weight:600;font-size:15px;color:var(--ink)}
-.dropzone .dz-title u{color:var(--accent);text-decoration:none}
-.dropzone .dz-sub{font-size:12.5px;color:var(--muted)}
+.dropzone .dz-ic{font-size:24px;margin-bottom:3px}
+.dropzone .dz-file{font-weight:500;font-size:13px;color:var(--ink)}
+.dropzone .dz-meta{color:var(--muted);font-size:11px;font-weight:400}
+.dropzone .dz-sub{font-size:11px;color:var(--muted);font-weight:500;margin-top:1px}
+.dropzone .dz-btn{margin-top:11px;padding:6px 14px;background:var(--ink);color:var(--ground);
+  font-size:12px;font-weight:600;border-radius:7px}
+.dropzone:hover .dz-btn{background:var(--accent);color:var(--on-accent)}
 #uploadmsg{font-size:12.5px;margin-top:10px;text-align:center}
 #uploadmsg.ok{color:var(--gruen)} #uploadmsg.err{color:var(--rot)}
 .setrow{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:11px 0;border-top:1px solid var(--hair)}
@@ -382,10 +385,12 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
     </div>
     <h4 style="margin-top:24px">📤 Excel aktualisieren</h4>
     <p>Neue oder erweiterte Excel-Datei laden – die Zahlen und Diagramme passen sich automatisch an. Der Import <b>ersetzt</b> die aktuell gezeigten Daten (keine Doppelzählung).</p>
+    <div class="dz-lbl">Excel-Upload</div>
     <label class="dropzone" id="dropzone">
-      <div class="dz-ic">📥</div>
-      <div class="dz-title">Excel-Datei hierher ziehen oder <u>auswählen</u></div>
-      <div class="dz-sub">Blätter „Bonierungen" &amp; „Ausgaben" · .xlsx</div>
+      <div class="dz-ic">📄</div>
+      <div class="dz-file" id="dz-file">limonadenstaende.xlsx <span class="dz-meta">· 131.710 Zeilen</span></div>
+      <div class="dz-sub">Nur clientseitige Vorschau — nichts wird hochgeladen</div>
+      <span class="dz-btn">Datei ersetzen</span>
       <input type="file" id="xlsxfile" accept=".xlsx" hidden>
     </label>
     <div id="uploadmsg"></div>
@@ -1285,6 +1290,8 @@ function importExcel(file){
       const ds=sales.map(r=>r.d).sort();F.dmin=ds[0];F.dmax=ds[ds.length-1];
       // Standorte ohne Beispiel-Wetter: Wetter bleibt Beispieldaten, nur passende Standorte behalten
       state.pfad=[];initDates();
+      const dzf=document.getElementById("dz-file");
+      if(dzf)dzf.innerHTML=`${file.name} <span class="dz-meta">· ${sales.length.toLocaleString("de-DE")} Verkaufstage</span>`;
       msg.className="ok";msg.textContent="Import ok: "+sales.length.toLocaleString("de-DE")+" Verkaufstage, Zeitraum "+F.dmin+" bis "+F.dmax+". Darstellung aktualisiert.";
     }catch(err){msg.className="err";msg.textContent="Fehler beim Lesen: "+err.message;}};
     rd.readAsArrayBuffer(file);
