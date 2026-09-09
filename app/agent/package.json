@@ -1,0 +1,8 @@
+{
+  "name": "limonaden-cockpit-agent",
+  "private": true,
+  "type": "module",
+  "description": "Optionaler Deutungs-Dienst: hält den API-Schlüssel und lässt Claude die Befunde interpretieren",
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": { "@anthropic-ai/sdk": "^0.70.0" }
+}
