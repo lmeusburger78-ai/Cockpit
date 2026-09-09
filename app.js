@@ -631,11 +631,20 @@
         });
       });
 
-      // edit time cards → picker
+      // edit time values (Settings only) → wheel picker
       $$('[data-edit]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const which = btn.getAttribute('data-edit');
-          openPicker(which);
+        const open = () => openPicker(btn.getAttribute('data-edit'));
+        btn.addEventListener('click', open);
+        btn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+        });
+      });
+
+      // setup cards route to Settings (time is edited only there)
+      $$('[data-goto]').forEach(el => {
+        el.addEventListener('click', () => {
+          this.renderSettings();
+          this.show(el.getAttribute('data-goto'));
         });
       });
 

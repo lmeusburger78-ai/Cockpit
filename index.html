@@ -44,11 +44,11 @@
         </header>
 
         <div class="dual-cards">
-          <button class="metric-card work" data-edit="work">
+          <button class="metric-card work" data-goto="settings" aria-label="Arbeitszeit in den Einstellungen ändern">
             <span class="metric-eyebrow work-c">Arbeit</span>
             <span class="metric-val" id="setupWork">02:00</span>
           </button>
-          <button class="metric-card rest" data-edit="rest">
+          <button class="metric-card rest" data-goto="settings" aria-label="Pausenzeit in den Einstellungen ändern">
             <span class="metric-eyebrow rest-c">Pause</span>
             <span class="metric-val" id="setupRest">01:00</span>
           </button>
@@ -262,7 +262,7 @@
             <div><div class="opt-title">Arbeitszeit</div><div class="opt-sub">pro Runde</div></div>
             <div class="time-stepper">
               <button class="round-btn" data-step="work" data-dir="-1">−</button>
-              <span class="time-val work-c" id="stWork">02:00</span>
+              <span class="time-val work-c editable" id="stWork" data-edit="work" role="button" tabindex="0">02:00</span>
               <button class="round-btn work" data-step="work" data-dir="1">+</button>
             </div>
           </div>
@@ -270,7 +270,7 @@
             <div><div class="opt-title">Pausenzeit</div><div class="opt-sub">nach jeder Runde</div></div>
             <div class="time-stepper">
               <button class="round-btn" data-step="rest" data-dir="-1">−</button>
-              <span class="time-val rest-c" id="stRest">01:00</span>
+              <span class="time-val rest-c editable" id="stRest" data-edit="rest" role="button" tabindex="0">01:00</span>
               <button class="round-btn rest" data-step="rest" data-dir="1">+</button>
             </div>
           </div>
@@ -294,7 +294,7 @@
             <div><div class="opt-title">Große Pause zw. Sets</div><div class="opt-sub">Erholung zwischen Sets</div></div>
             <div class="time-stepper">
               <button class="round-btn" data-step="bigbreak" data-dir="-1">−</button>
-              <span class="time-val gold-c" id="stBigBreak">05:00</span>
+              <span class="time-val gold-c editable" id="stBigBreak" data-edit="bigbreak" role="button" tabindex="0">05:00</span>
               <button class="round-btn gold" data-step="bigbreak" data-dir="1">+</button>
             </div>
           </div>
@@ -350,29 +350,29 @@
 
     </div>
 
-    <div class="home-indicator" aria-hidden="true"></div>
-  </div>
-
-  <!-- Time picker (drop-up wheel) -->
-  <div class="picker-backdrop" id="pickerBackdrop" hidden>
-    <div class="picker" id="picker">
-      <div class="grabber"></div>
-      <div class="picker-head">
-        <button class="picker-cancel" id="pickerCancel">Abbrechen</button>
-        <div class="picker-title" id="pickerTitle">Arbeit</div>
-        <button class="picker-ok" id="pickerOk">OK</button>
-      </div>
-      <div class="wheels">
-        <div class="wheel-highlight"></div>
-        <div class="wheel" id="wheelMin" data-unit="Min"></div>
-        <div class="wheel-colon">:</div>
-        <div class="wheel" id="wheelSec" data-unit="Sek"></div>
+    <!-- Time picker (drop-up wheel) — only reachable from Settings -->
+    <div class="picker-backdrop" id="pickerBackdrop" hidden>
+      <div class="picker" id="picker">
+        <div class="grabber"></div>
+        <div class="picker-head">
+          <button class="picker-cancel" id="pickerCancel">Abbrechen</button>
+          <div class="picker-title" id="pickerTitle">Arbeit</div>
+          <button class="picker-ok" id="pickerOk">OK</button>
+        </div>
+        <div class="wheels">
+          <div class="wheel-highlight"></div>
+          <div class="wheel" id="wheelMin" data-unit="Min"></div>
+          <div class="wheel-colon">:</div>
+          <div class="wheel" id="wheelSec" data-unit="Sek"></div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Toast -->
-  <div class="toast" id="toast" hidden></div>
+    <!-- Toast -->
+    <div class="toast" id="toast" hidden></div>
+
+    <div class="home-indicator" aria-hidden="true"></div>
+  </div>
 
   <script src="app.js"></script>
 </body>

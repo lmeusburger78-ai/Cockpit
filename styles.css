@@ -481,6 +481,12 @@ button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
 .time-stepper { display: flex; align-items: center; gap: 10px; }
 .time-stepper .round-btn { width: 30px; height: 30px; font-size: 16px; }
 .time-val { font: 700 15px/1 var(--mono); min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+.time-val.editable {
+  cursor: pointer; border-radius: 8px; padding: 6px 4px;
+  text-decoration: underline dotted rgba(255,255,255,.3); text-underline-offset: 4px;
+}
+.time-val.editable:active { background: rgba(255,255,255,.06); }
+.time-val.editable:focus-visible { outline: 2px solid rgba(255,255,255,.35); outline-offset: 2px; }
 .save-row { display: flex; gap: 8px; }
 .save-row input {
   flex: 1; background: #0a0a0a; border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
