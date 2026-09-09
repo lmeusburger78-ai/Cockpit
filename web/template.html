@@ -4,42 +4,47 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
-  --ground:#f2f2ef; --surface:#ffffff; --surface-2:#fbfbf9;
-  --ink:#14150f; --ink-2:#565851; --muted:#8a8c83; --hair:#e3e3dc; --axis:#c7c7bd;
-  --accent:#2a78d6; --accent-soft:#e7f0fc;
-  --gruen:#0ca30c; --gelb:#e0900a; --rot:#d03b3b;
-  --shadow:0 1px 2px rgba(20,21,15,.05),0 2px 8px rgba(20,21,15,.04);
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
+  /* Warmes „frisch-gepresst"-Cremeschema (Limonaden-Redesign) */
+  --ground:#f7f4ec; --surface:#fffdf8; --surface-2:#f4efe3;
+  --ink:#1a1815; --ink-2:#565149; --muted:#8b7a5e; --hair:#e5dfd0; --axis:#cec5b1;
+  --accent:#2f6fbf; --accent-soft:#e9eff8; --on-accent:#ffffff;
+  --gruen:#2d7d32; --gelb:#c98a1a; --rot:#c0392b;
+  --ok-bg:#e6f0e2; --warn-bg:#f6ecd6; --bad-bg:#f6e2df;
+  --shadow:0 1px 2px rgba(43,34,22,.05),0 2px 10px rgba(43,34,22,.05);
+  --s1:#2f6fbf; --s2:#e26a3d; --s3:#3aa06c; --s4:#e0a92a; --s5:#d98cae;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --ground:#0e0f0c; --surface:#191a16; --surface-2:#201f1b;
-  --ink:#f4f4ee; --ink-2:#bcbdb2; --muted:#8a8c83; --hair:#2c2d27; --axis:#3a3b34;
-  --accent:#3987e5; --accent-soft:#16233a;
-  --gruen:#26b524; --gelb:#f0a92a; --rot:#e05a58;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 2px 10px rgba(0,0,0,.25);
-  --s1:#3987e5; --s2:#e0663a; --s3:#22b982; --s4:#e0a63a; --s5:#e88bab;
+  --ground:#161311; --surface:#1e1a15; --surface-2:#251f17;
+  --ink:#f4f0e6; --ink-2:#c5bba6; --muted:#8f8168; --hair:#2a2521; --axis:#3c362c;
+  --accent:#e8b93a; --accent-soft:#2c2612; --on-accent:#1a1512;
+  --gruen:#8fd6a2; --gelb:#f5c518; --rot:#e07a6a;
+  --ok-bg:#1a2a1e; --warn-bg:#2a2410; --bad-bg:#2e1a17;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 2px 12px rgba(0,0,0,.3);
+  --s1:#4a8fd6; --s2:#e28a5d; --s3:#4bb883; --s4:#e8c247; --s5:#e2a0c0;
 }}
 :root[data-theme="dark"]{
-  --ground:#0e0f0c; --surface:#191a16; --surface-2:#201f1b;
-  --ink:#f4f4ee; --ink-2:#bcbdb2; --muted:#8a8c83; --hair:#2c2d27; --axis:#3a3b34;
-  --accent:#3987e5; --accent-soft:#16233a;
-  --gruen:#26b524; --gelb:#f0a92a; --rot:#e05a58;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 2px 10px rgba(0,0,0,.25);
-  --s1:#3987e5; --s2:#e0663a; --s3:#22b982; --s4:#e0a63a; --s5:#e88bab;
+  --ground:#161311; --surface:#1e1a15; --surface-2:#251f17;
+  --ink:#f4f0e6; --ink-2:#c5bba6; --muted:#8f8168; --hair:#2a2521; --axis:#3c362c;
+  --accent:#e8b93a; --accent-soft:#2c2612; --on-accent:#1a1512;
+  --gruen:#8fd6a2; --gelb:#f5c518; --rot:#e07a6a;
+  --ok-bg:#1a2a1e; --warn-bg:#2a2410; --bad-bg:#2e1a17;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 2px 12px rgba(0,0,0,.3);
+  --s1:#4a8fd6; --s2:#e28a5d; --s3:#4bb883; --s4:#e8c247; --s5:#e2a0c0;
 }
 *{box-sizing:border-box}
 /* Willkommens-Deckfolie */
 #welcome{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;
-  background:linear-gradient(135deg,#2a78d6 0%,#1b5bab 55%,#123f78 100%)}
+  background:radial-gradient(120% 90% at 50% 22%,#fbf3d8 0%,#f6f1e6 55%,#efe7d2 100%)}
 #welcome.gone{display:none}
-.wcard{max-width:560px;width:100%;text-align:center;color:#fff}
-.wlogo{width:96px;height:96px;margin:0 auto 22px;border-radius:24px;background:rgba(255,255,255,.15);
-  border:1px solid rgba(255,255,255,.35);display:grid;place-items:center;font-size:52px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
-.weyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:13px;font-weight:600;color:rgba(255,255,255,.8);margin-bottom:10px}
-.wtitle{font-size:44px;line-height:1.08;margin:0 0 16px;font-weight:700;letter-spacing:-.02em}
-.wsub{font-size:15px;line-height:1.6;color:rgba(255,255,255,.9);margin:0 auto 30px;max-width:440px}
-.wstart{border:none;border-radius:12px;background:#fff;color:#1b5bab;font:inherit;font-weight:700;font-size:17px;
-  padding:14px 40px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,.25);transition:transform .08s ease}
+.wcard{max-width:560px;width:100%;text-align:center;color:#1a1815}
+.wlogo{width:104px;height:104px;margin:0 auto 24px;border-radius:28px;
+  background:linear-gradient(135deg,#f5c518 0%,#3aa06c 100%);
+  display:grid;place-items:center;font-size:54px;box-shadow:0 14px 44px rgba(58,160,108,.28)}
+.weyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:13px;font-weight:600;color:#8b7a5e;margin-bottom:10px}
+.wtitle{font-size:46px;line-height:1.06;margin:0 0 16px;font-weight:700;letter-spacing:-.02em}
+.wsub{font-size:15px;line-height:1.6;color:#565149;margin:0 auto 30px;max-width:440px}
+.wstart{border:none;border-radius:12px;background:#1a1815;color:#fbf3d8;font:inherit;font-weight:700;font-size:17px;
+  padding:14px 40px;cursor:pointer;box-shadow:0 10px 30px rgba(26,24,21,.22);transition:transform .08s ease}
 .wstart:hover{transform:translateY(-1px)}
 @media(max-width:520px){.wtitle{font-size:34px}}
 body{margin:0;background:var(--ground);color:var(--ink);
@@ -51,8 +56,8 @@ body{margin:0;background:var(--ground);color:var(--ink);
 /* Sidebar */
 .side{background:var(--surface);border-right:1px solid var(--hair);padding:22px 20px;display:flex;flex-direction:column;gap:20px}
 .brand{display:flex;align-items:center;gap:10px}
-.brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#1b5bab);
-  display:grid;place-items:center;color:#fff;font-weight:700;font-size:17px;flex:none}
+.brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#f5c518 0%,#3aa06c 100%);
+  display:grid;place-items:center;color:#1a1815;font-weight:700;font-size:17px;flex:none}
 .brand h1{font-size:15px;margin:0;font-weight:600;letter-spacing:-.01em}
 .brand span{display:block;color:var(--muted);font-size:11.5px;font-weight:500;letter-spacing:.02em;text-transform:uppercase}
 .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin-bottom:8px}
@@ -129,7 +134,10 @@ h2.node{font-size:27px;margin:2px 0 3px;letter-spacing:-.02em;text-wrap:balance}
 .kpi .dot{width:11px;height:11px;border-radius:50%;flex:none}
 .kpi .k-val{font-size:32px;font-weight:600;letter-spacing:-.02em;line-height:1;color:var(--ink)}
 .kpi .k-val .u{font-size:14px;color:var(--muted);font-weight:500;margin-left:3px}
-.kpi .k-delta{font-size:14px;margin-top:8px;font-weight:600;font-family:"IBM Plex Mono",monospace}
+.kpi .k-delta{display:inline-flex;align-items:center;font-size:12px;margin-top:9px;font-weight:600;
+  padding:3px 10px;border-radius:100px;line-height:1.35}
+.kpi .k-delta.ok{color:var(--gruen);background:var(--ok-bg)}
+.kpi .k-delta.bad{color:var(--rot);background:var(--bad-bg)}
 .wthr{margin:16px 0 6px;padding:11px 15px;background:var(--surface-2);border:1px solid var(--hair);
   border-radius:10px;font-size:13px;color:var(--ink-2);display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .wthr b{color:var(--ink);font-weight:600}
@@ -163,7 +171,7 @@ h2.node{font-size:27px;margin:2px 0 3px;letter-spacing:-.02em;text-wrap:balance}
 .tgroup{display:inline-flex;border:1px solid var(--hair);border-radius:9px;overflow:hidden;background:var(--surface)}
 .tgroup button{border:none;background:none;color:var(--ink-2);font:inherit;font-size:12.5px;font-weight:500;
   padding:6px 13px;cursor:pointer}
-.tgroup button.on{background:var(--accent);color:#fff}
+.tgroup button.on{background:var(--accent);color:var(--on-accent)}
 .tgroup button:disabled{opacity:.4;cursor:not-allowed}
 .tgroup button+button{border-left:1px solid var(--hair)}
 .tglabel{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;
@@ -201,7 +209,7 @@ details.tbl>summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight
 .steps{counter-reset:s;list-style:none;padding:0;margin:8px 0 4px}
 .steps li{counter-increment:s;position:relative;padding:8px 0 8px 40px;color:var(--ink-2);font-size:13.5px;border-top:1px solid var(--hair)}
 .steps li::before{content:counter(s);position:absolute;left:0;top:8px;width:26px;height:26px;border-radius:8px;
-  background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px}
+  background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-weight:600;font-size:13px}
 .closex{float:right;background:none;border:1px solid var(--hair);border-radius:8px;width:32px;height:32px;
   cursor:pointer;color:var(--ink-2);font-size:16px}
 .tag{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:1px 8px;
@@ -1051,7 +1059,7 @@ function renderKPIs(){
       else if(k.id==="ergebnis_eur"){d=k.wert-k.prev;txt=(d>=0?"▲ ":"▼ ")+fmtShort(Math.abs(d),"umsatz_eur");}
       else if(k.prev!==0){d=(k.wert-k.prev)/Math.abs(k.prev)*100;txt=(d>=0?"▲ ":"▼ ")+Math.abs(d).toFixed(1).replace(".",",")+" %";}
       if(txt!=null){const gut=(d>=0)===(k.richtung==="groesser_ist_besser");
-        delta=`<div class="k-delta" style="color:${gut?cssv("--gruen"):cssv("--rot")}">${txt} ${node().vergleich_label}</div>`;}
+        delta=`<div class="k-delta ${gut?"ok":"bad"}">${txt} ${node().vergleich_label}</div>`;}
     }
     const dot=k.ampel?`<span class="dot" style="background:${statusCol(k.ampel)}"></span>`:"";
     const tip=GLOSS[k.id]?` title="${GLOSS[k.id]}"`:"";
