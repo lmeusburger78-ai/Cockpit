@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
+  <div class="login-screen" id="login-screen" hidden></div>
+
   <div class="app">
     <!-- Sidebar -->
     <aside class="sidebar">
@@ -31,6 +33,10 @@
       </nav>
 
       <div class="sidebar-foot">
+        <div class="user-box" id="user-box" hidden>
+          <span class="user-email" id="user-email"></span>
+          <button class="icon-btn" id="btn-logout" title="Abmelden">⎋</button>
+        </div>
         <button class="btn ghost block" id="btn-settings">⚙ Einstellungen</button>
         <div class="data-badge" id="data-badge">Demo-Daten</div>
       </div>
@@ -74,8 +80,11 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="js/vendor/chart.umd.js"></script>
+  <script src="js/vendor/supabase.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/util.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/state.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/detail.js"></script>

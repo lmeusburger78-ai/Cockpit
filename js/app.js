@@ -55,7 +55,7 @@
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     $("#btn-theme").textContent = theme === "dark" ? "☾" : "☀";
-    C.state.setSettings({ theme });
+    try { C.state.setSettings({ theme }); } catch (_) { /* vor Login noch kein Store */ }
   }
 
   /* ---------- Datenquellen-Badge ---------- */
@@ -106,24 +106,12 @@
   }
 
   /* ---------- Init ---------- */
-  function init() {
-    if (typeof Chart === "undefined") {
-      const b = C.el("div", { class: "card", style: "margin-bottom:18px;border-color:var(--down);" },
-        C.el("div", { class: "empty", text: "Hinweis: Chart-Bibliothek (js/vendor/chart.umd.js) nicht gefunden – Diagramme werden nicht angezeigt." }));
-      $("#page-portfolio").appendChild(b);
-    }
-    C.state.init();
-    applyTheme(C.state.settings().theme || "dark");
-    updateBadge();
-
-    // Navigation
+  function wireStaticListeners() {
     $$(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.page)));
     $("#btn-refresh").addEventListener("click", () => { C.toast("Aktualisiert."); C.rerender(); });
-    const curQuick = $("#cur-quick");
-    curQuick.value = C.state.settings().currency;
-    curQuick.addEventListener("change", () => {
-      C.state.setSettings({ currency: curQuick.value });
-      C.toast("Anzeigewährung: " + curQuick.value);
+    $("#cur-quick").addEventListener("change", () => {
+      C.state.setSettings({ currency: $("#cur-quick").value });
+      C.toast("Anzeigewährung: " + $("#cur-quick").value);
       C.rerender();
     });
     $("#btn-theme").addEventListener("click", () => {
@@ -135,8 +123,52 @@
     $("#modal-close").addEventListener("click", C.closeModal);
     $("#modal-backdrop").addEventListener("click", (e) => { if (e.target.id === "modal-backdrop") C.closeModal(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") C.closeModal(); });
+    const logout = $("#btn-logout");
+    if (logout) logout.addEventListener("click", async () => { try { await C.auth.signOut(); } catch (_) {} });
+  }
 
+  function afterStoreReady() {
+    applyTheme(C.state.settings().theme || "dark");
+    updateBadge();
+    $("#cur-quick").value = C.state.settings().currency;
     navigate("portfolio");
+  }
+
+  function showUser(user) {
+    const box = $("#user-box");
+    if (box) { box.hidden = false; $("#user-email").textContent = user.email || "Angemeldet"; }
+  }
+
+  async function enterApp(user) {
+    await C.state.initCloud(user.id);
+    C.hideLogin();
+    showUser(user);
+    afterStoreReady();
+  }
+
+  function init() {
+    if (typeof Chart === "undefined") {
+      const b = C.el("div", { class: "card", style: "margin-bottom:18px;border-color:var(--down);" },
+        C.el("div", { class: "empty", text: "Hinweis: Chart-Bibliothek (js/vendor/chart.umd.js) nicht gefunden – Diagramme werden nicht angezeigt." }));
+      $("#page-portfolio").appendChild(b);
+    }
+    wireStaticListeners();
+
+    if (C.auth.enabled()) {
+      // Mehrbenutzer-Modus mit Login
+      applyTheme("dark"); // Standard-Theme für den Login-Screen
+      C.auth.getUser().then((user) => {
+        if (user) enterApp(user); else C.showLogin();
+      });
+      C.auth.onChange((user) => {
+        if (user) { enterApp(user); }
+        else { C.state.clear(); C.destroyAllCharts(); C.showLogin(); }
+      });
+    } else {
+      // Lokaler Einzelbenutzer-Modus
+      C.state.initLocal();
+      afterStoreReady();
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

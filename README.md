@@ -42,10 +42,15 @@ Klick auf ein Kürzel (in Portfolio, Watchlist oder News) öffnet die Detailansi
 - **Aktuelle Nachrichten** + Direktlinks zu den wichtigsten Quellen je Aktie
 
 ### Weiteres
+- 👥 **Mehrbenutzer-Modus mit Login** (optional): eigene Konten mit
+  geräteübergreifendem Cloud-Sync über Supabase – Magic-Link, Google oder
+  E-Mail/Passwort. Einrichtung in **[SETUP.md](SETUP.md)**. Ohne Konfiguration
+  läuft alles wie bisher lokal.
 - 💱 Anzeigewährung schnell umschaltbar (EUR / CHF / USD) über die Kopfzeile
   (reine Anzeige­währung – keine Kurs-Umrechnung)
 - 🌗 Hell-/Dunkel-Modus
-- 💾 Portfolio, Watchlist & Einstellungen werden lokal im Browser gespeichert (`localStorage`)
+- 💾 Portfolio, Watchlist & Einstellungen werden gespeichert – lokal im Browser
+  (`localStorage`) oder pro Nutzer in der Cloud (Mehrbenutzer-Modus)
 - 📊 Charts via Chart.js (lokal mitgeliefert, läuft komplett offline)
 
 ## Nutzung
@@ -75,19 +80,23 @@ API-Key von [finnhub.io](https://finnhub.io/register) eintragen:
 ## Projektstruktur
 
 ```
-index.html            App-Grundgerüst (Sidebar, Topbar, Seiten, Modal)
+index.html            App-Grundgerüst (Sidebar, Topbar, Seiten, Modal, Login)
 css/styles.css        Design-System (Dark/Light), Layout, Komponenten
+SETUP.md              Anleitung Mehrbenutzer-Modus (Supabase-Login)
 js/
+  config.js           Supabase-Zugangsdaten (leer = lokaler Modus)
   util.js             Formatierung, DOM-Helfer, Farben, seeded RNG
   data.js             Aktien-Universum, Demo-Daten, Finnhub-Provider
-  state.js            Persistenz (localStorage): Portfolio, Watchlist, Settings
+  auth.js             Login & Nutzerverwaltung (Supabase) + Login-Screen
+  state.js            Persistenz (lokal ODER Cloud): Portfolio, Watchlist, Settings
   charts.js           Chart.js-Fabriken (Kreis-, Linien-, Balkendiagramm)
   portfolio.js        Seite „Portfolio"
   watchlist.js        Seite „Watchlist"
   news.js             Seite „News & Zahlen"
   detail.js           Aktien-Detailansicht (Modal)
-  app.js              Router, Navigation, Theme, Einstellungen
+  app.js              Router, Navigation, Theme, Einstellungen, Auth-Gate
   vendor/chart.umd.js Chart.js 4.4.1 (lokal, MIT-Lizenz)
+  vendor/supabase.js  supabase-js 2.x (lokal, MIT-Lizenz)
 ```
 
 ## Anpassen
