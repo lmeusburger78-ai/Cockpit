@@ -37,6 +37,8 @@ Klick auf ein Kürzel (in Portfolio, Watchlist oder News) öffnet die Detailansi
 - **Aktuelle Nachrichten** + Direktlinks zu den wichtigsten Quellen je Aktie
 
 ### Weiteres
+- 💱 Anzeigewährung schnell umschaltbar (EUR / CHF / USD) über die Kopfzeile
+  (reine Anzeige­währung – keine Kurs-Umrechnung)
 - 🌗 Hell-/Dunkel-Modus
 - 💾 Portfolio, Watchlist & Einstellungen werden lokal im Browser gespeichert (`localStorage`)
 - 📊 Charts via Chart.js (lokal mitgeliefert, läuft komplett offline)

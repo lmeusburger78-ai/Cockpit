@@ -74,7 +74,7 @@
     ]);
     const key = C.el("input", { type: "text", id: "s-key", value: s.finnhubKey || "", placeholder: "Finnhub API-Key" });
     const currency = C.el("select", { id: "s-currency" },
-      ["EUR", "USD", "GBP"].map((c) => C.el("option", { value: c, ...(s.currency === c ? { selected: "selected" } : {}) }, c)));
+      ["EUR", "CHF", "USD", "GBP"].map((c) => C.el("option", { value: c, ...(s.currency === c ? { selected: "selected" } : {}) }, c)));
 
     const body = C.el("div", { class: "form-grid" }, [
       C.el("label", { class: "field full" }, ["Datenquelle", provider]),
@@ -119,6 +119,13 @@
     // Navigation
     $$(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.page)));
     $("#btn-refresh").addEventListener("click", () => { C.toast("Aktualisiert."); C.rerender(); });
+    const curQuick = $("#cur-quick");
+    curQuick.value = C.state.settings().currency;
+    curQuick.addEventListener("change", () => {
+      C.state.setSettings({ currency: curQuick.value });
+      C.toast("Anzeigewährung: " + curQuick.value);
+      C.rerender();
+    });
     $("#btn-theme").addEventListener("click", () => {
       const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
       applyTheme(next);

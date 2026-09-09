@@ -116,7 +116,8 @@ button { font-family: inherit; }
 }
 .topbar h1 { font-size: 24px; }
 .subtitle { margin: 4px 0 0; color: var(--text-dim); font-size: 13px; }
-.topbar-actions { display: flex; gap: 10px; }
+.topbar-actions { display: flex; gap: 10px; align-items: center; }
+.cur-quick { padding: 8px 10px; font-weight: 600; }
 
 /* ---------- Buttons & controls ---------- */
 .btn {

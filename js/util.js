@@ -36,7 +36,7 @@ window.Cockpit = window.Cockpit || {};
   const CURRENCY = { symbol: "€", locale: "de-DE", code: "EUR" };
   C.setCurrency = (code) => {
     CURRENCY.code = code;
-    CURRENCY.symbol = code === "USD" ? "$" : code === "GBP" ? "£" : "€";
+    CURRENCY.symbol = code === "USD" ? "$" : code === "GBP" ? "£" : code === "CHF" ? "CHF" : "€";
   };
 
   C.fmtMoney = function (n, opts) {
