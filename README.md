@@ -14,6 +14,11 @@ Einfach `index.html` im Browser öffnen.
   wählbarem Zeitraum (1M / 3M / 6M / 1J) und optionalem **Benchmark-Vergleich** (Weltindex)
 - **Positionen-Tabelle:** Anteil, Stück, Ø Kaufkurs, aktueller Kurs, Wert, Tages- und Gesamt-G/V –
   Positionen anlegen, bearbeiten und löschen
+- **Kaufkurs erfassen – entweder/oder:** manuell eingeben *oder* per **Kaufdatum**
+  ableiten (Vorschlag = Eröffnungskurs des Tages; mit ◀ ▶ zu einem anderen
+  Handelstag wechseln und dessen Kurs übernehmen)
+- **Beliebige Titel:** manuelle Titel (Symbol/Name/Branche) zusätzlich zum
+  Universum aus ATX, DAX/Europa und US-Werten
 
 ### 2 · Watchlist
 - Selbst gewählte Aktien beobachten (Kurs, Tagesveränderung, Tagesbereich-Balken)

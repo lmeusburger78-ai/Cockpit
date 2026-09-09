@@ -330,11 +330,37 @@ window.Cockpit = window.Cockpit || {};
     ]);
     symSel.addEventListener("change", () => { customBox.hidden = symSel.value !== "__custom__"; });
 
+    // aktuell gewähltes Symbol auflösen (auch bei manuellem Titel)
+    const getSymbol = () => {
+      let s = symSel.value;
+      if (s === "__custom__") s = (cSym.value || "").trim().toUpperCase();
+      return s;
+    };
+    const priceByDate = buildDatePriceHelper(getSymbol, avg);
+
+    // Kaufkurs entweder manuell ODER per Datum ermitteln
+    const manualRow = el("label", { class: "field full" }, ["Ø Kaufkurs (manuell)", avg]);
+    priceByDate.hidden = true;
+    const setMode = (mode) => {
+      manualRow.hidden = mode !== "manual";
+      priceByDate.hidden = mode !== "date";
+      C.$$("#kk-mode button").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+    };
+    const modeSeg = el("div", { class: "field full" }, [
+      "Kaufkurs erfassen",
+      el("div", { class: "seg", id: "kk-mode", style: "margin-top:4px;" }, [
+        el("button", { type: "button", "data-mode": "manual", class: "active", onclick: () => setMode("manual") }, "Manuell eingeben"),
+        el("button", { type: "button", "data-mode": "date", onclick: () => setMode("date") }, "Per Kaufdatum"),
+      ]),
+    ]);
+
     const body = el("div", { class: "form-grid" }, [
       el("label", { class: "field full" }, ["Aktie", symSel]),
       customBox,
-      el("label", { class: "field" }, ["Stückzahl", shares]),
-      el("label", { class: "field" }, ["Ø Kaufkurs", avg]),
+      el("label", { class: "field full" }, ["Stückzahl", shares]),
+      modeSeg,
+      manualRow,
+      priceByDate,
       el("div", { class: "full", style: "display:flex;gap:10px;justify-content:flex-end;margin-top:8px;" }, [
         el("button", { class: "btn ghost", onclick: () => C.closeModal() }, "Abbrechen"),
         el("button", {
@@ -376,6 +402,68 @@ window.Cockpit = window.Cockpit || {};
   }
   function iconBtn(icon, title, onclick) {
     return el("button", { class: "icon-btn", title, onclick }, icon);
+  }
+
+  /* ---------- Kaufkurs per Datum ermitteln (Eröffnungskurs + iterieren) ---------- */
+  function idxForDate(hist, ms) {
+    let idx = 0;
+    for (let i = 0; i < hist.length; i++) { if (hist[i].t <= ms) idx = i; else break; }
+    return idx;
+  }
+  function buildDatePriceHelper(getSymbol, avgInput) {
+    const dateInput = el("input", { type: "date", max: new Date().toISOString().slice(0, 10) });
+    const panel = el("div", { class: "pp-panel", hidden: "hidden" });
+    let hist = null, idx = 0;
+
+    function render() {
+      if (!hist || !hist.length) return;
+      const p = hist[idx];
+      panel.innerHTML = "";
+      panel.appendChild(el("div", { class: "pp-row" }, [
+        el("button", { class: "icon-btn", type: "button", title: "Vorheriger Handelstag",
+          onclick: () => { if (idx > 0) { idx--; render(); } } }, "◀"),
+        el("div", { class: "pp-mid" }, [
+          el("div", { class: "pp-date", text: C.fmtDate(p.t) }),
+          el("div", { class: "pp-px" }, [
+            el("span", { text: "Eröffnung " }), el("b", { text: C.fmtMoney(p.open) }),
+            el("span", { class: "sym-name", text: "   Schluss " + C.fmtMoney(p.close) }),
+          ]),
+        ]),
+        el("button", { class: "icon-btn", type: "button", title: "Nächster Handelstag",
+          onclick: () => { if (idx < hist.length - 1) { idx++; render(); } } }, "▶"),
+      ]));
+      panel.appendChild(el("div", { class: "pp-actions" }, [
+        el("button", { class: "btn sm", type: "button",
+          onclick: () => { avgInput.value = p.open; C.toast("Eröffnungskurs vom " + C.fmtDate(p.t) + " übernommen."); } },
+          "Eröffnungskurs übernehmen"),
+        el("button", { class: "btn ghost sm", type: "button",
+          onclick: () => { avgInput.value = p.close; C.toast("Schlusskurs übernommen."); } }, "Schlusskurs"),
+      ]));
+    }
+
+    const proposeBtn = el("button", { class: "btn ghost sm", type: "button", onclick: async () => {
+      const sym = getSymbol();
+      if (!sym) { C.toast("Bitte zuerst eine Aktie auswählen."); return; }
+      if (!dateInput.value) { C.toast("Bitte ein Kaufdatum wählen."); return; }
+      proposeBtn.textContent = "Lade …"; proposeBtn.disabled = true;
+      try {
+        hist = await C.data.priceHistory(sym);
+        const ms = new Date(dateInput.value + "T00:00:00").getTime();
+        idx = idxForDate(hist, ms);
+        panel.hidden = false;
+        render();
+      } finally { proposeBtn.textContent = "Kurs vorschlagen"; proposeBtn.disabled = false; }
+    } }, "Kurs vorschlagen");
+
+    return el("div", { class: "field full pp-wrap" }, [
+      el("div", { class: "pp-head", text: "Kaufkurs aus Kaufdatum ableiten" }),
+      el("div", { class: "pp-input" }, [
+        el("label", { class: "field", style: "flex:1;min-width:150px;" }, ["Kaufdatum", dateInput]),
+        proposeBtn,
+      ]),
+      panel,
+      el("p", { class: "hint", text: "Vorschlag = Eröffnungskurs des Tages. Mit ◀ ▶ zu einem anderen Handelstag wechseln, dann übernehmen. Historische Kurse sind (in der Demo) Schätzwerte." }),
+    ]);
   }
 
   function emptyState() {

@@ -163,6 +163,34 @@ window.Cockpit = window.Cockpit || {};
     return arr.map((v, i) => ({ t: now - (days - 1 - i) * day, v }));
   }
 
+  /** Historische Tageskurse (Handelstage, Mo–Fr) mit Eröffnung/Schluss,
+      endet heute beim aktuellen Kurs. Für die Kaufkurs-per-Datum-Auswahl. */
+  function demoHistory(sym, businessDays) {
+    // Handelstage rückwärts sammeln (ohne Wochenende)
+    const dates = [];
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    while (dates.length < businessDays) {
+      const wd = d.getDay();
+      if (wd !== 0 && wd !== 6) dates.unshift(new Date(d));
+      d.setDate(d.getDate() - 1);
+    }
+    const q = demoQuote(sym);
+    const r = C.rng(C.hashSeed(sym + "s"));
+    const drift = ((r() - 0.4) * 0.0009);
+    const vol = 0.008 + r() * 0.014;
+    const closes = [q.price];
+    for (let i = 1; i < dates.length; i++) {
+      const shock = (r() - 0.5) * 2 * vol;
+      closes.unshift(+(closes[0] / (1 + drift + shock)).toFixed(2));
+    }
+    return dates.map((dt, i) => {
+      const c = closes[i];
+      const rr = C.rng(C.hashSeed(sym + "o" + i));
+      const gap = (rr() - 0.5) * 0.012; // Eröffnung weicht leicht vom Schluss ab
+      return { t: dt.getTime(), open: +(c * (1 + gap)).toFixed(2), close: c };
+    });
+  }
+
   /* ---------- Demo-News ---------- */
   const NEWS_TEMPLATES = [
     { c: "news", t: (n) => `${n} hebt Jahresprognose nach starkem Quartal an`, s: (n) => `${n} meldet ein über den Erwartungen liegendes Wachstum und zeigt sich für das laufende Geschäftsjahr optimistischer.` },
@@ -511,6 +539,22 @@ window.Cockpit = window.Cockpit || {};
         }
       });
       return out;
+    },
+
+    /** Historische Tageskurse (OHLC-vereinfacht) für die Kaufkurs-per-Datum-Wahl.
+        ~2 Jahre Handelstage; in Live-Modus an den aktuellen Kurs skaliert. */
+    async priceHistory(sym) {
+      let hist = demoHistory(sym, 520);
+      if (this.isLive()) {
+        try {
+          const q = (await this.quotes([sym]))[sym];
+          if (q && q.price) {
+            const f = q.price / hist[hist.length - 1].close;
+            hist = hist.map((p) => ({ t: p.t, open: +(p.open * f).toFixed(2), close: +(p.close * f).toFixed(2) }));
+          }
+        } catch (_) {}
+      }
+      return hist;
     },
 
     async news(symbols) {
