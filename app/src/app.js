@@ -1402,10 +1402,13 @@ function detailTableHTML() {
     : [["umsatz_eur", "Umsatz"], ["becher", "Becher"], ["wartezeit_min", "Ø Wartezeit"],
        ["zufriedenheit", "Ø Zufriedenheit"], ["temperatur_c", "Ø Temperatur"], ["niederschlag_mm", "Niederschlag"]];
   var usable = cols.filter(function (c) { return data.some(function (r) { return r[c[0]] != null; }); });
-  var head = "<tr><th>ZEIT</th>" + usable.map(function (c) { return "<th>" + esc(c[1].toUpperCase()) + "</th>"; }).join("") + "</tr>";
+  var head = "<tr><th>ZEIT</th>" + usable.map(function (c) {
+    var u = EINHEIT[c[0]] || "";
+    return "<th>" + esc(c[1].toUpperCase() + (u ? " (" + u + ")" : "")) + "</th>";
+  }).join("") + "</tr>";
   var body = data.map(function (r) {
     return "<tr><td>" + esc(r.label) + "</td>" + usable.map(function (c) {
-      return '<td class="' + (c[0] === "ergebnis_eur" ? (r[c[0]] >= 0 ? "pos" : "neg") : "") + '">' + esc(r[c[0]] != null ? fmt(r[c[0]], c[0]) : "–") + "</td>";
+      return '<td class="' + (c[0] === "ergebnis_eur" ? (r[c[0]] >= 0 ? "pos" : "neg") : "") + '">' + esc(r[c[0]] != null ? fmtParts(r[c[0]], c[0]).n : "–") + "</td>";
     }).join("") + "</tr>";
   }).join("");
   var seg = '<div class="seg">' + [["monat", "Monatlich"], ["woche", "Wöchentlich"], ["tag", "Täglich"]].map(function (g) {
@@ -2265,18 +2268,19 @@ function renderVergleich() {
   var body = members.map(function (m) {
     var ys = per.map(function (p) { return cmpVal(p, m); });
     if (ys.every(function (v) { return v == null; })) return "";
-    return "<tr><td>" + esc(m) + "</td>" + ys.map(function (v) { return "<td>" + esc(cmpFmt(v, metric)) + "</td>"; }).join("") + (mehr ? dcell(ys) : "") + "</tr>";
+    return "<tr><td>" + esc(m) + "</td>" + ys.map(function (v) { return "<td>" + esc(cmpFmtN(v, metric)) + "</td>"; }).join("") + (mehr ? dcell(ys) : "") + "</tr>";
   }).join("");
   var gesamt = "";
   if (ADDITIV[metric] && members.length > 1) {
     var sums = per.map(function (p) {
       return members.reduce(function (a, m) { var v = cmpVal(p, m); return a + (v || 0); }, 0);
     });
-    gesamt = '<tr class="total"><td>Gesamt</td>' + sums.map(function (v) { return "<td>" + esc(cmpFmt(v, metric)) + "</td>"; }).join("") + (mehr ? dcell(sums) : "") + "</tr>";
+    gesamt = '<tr class="total"><td>Gesamt</td>' + sums.map(function (v) { return "<td>" + esc(cmpFmtN(v, metric)) + "</td>"; }).join("") + (mehr ? dcell(sums) : "") + "</tr>";
   }
   var table = '<div class="sec"><div class="tbl-scroll"><table class="t"><thead>' + head + "</thead><tbody>" + body + gesamt + "</tbody></table></div></div>";
 
-  return '<div class="scope">VERGLEICH · ' + esc((SPLIT_LBL[metric] || KPIS[metric].name).toUpperCase()) + " NACH " + esc(serieLabel.toUpperCase()) +
+  var mUnit = EINHEIT[metric] || "";
+  return '<div class="scope">VERGLEICH · ' + esc((SPLIT_LBL[metric] || KPIS[metric].name).toUpperCase()) + (mUnit ? " (" + esc(mUnit) + ")" : "") + " NACH " + esc(serieLabel.toUpperCase()) +
     " · " + esc(per.map(perLabel).join(" vs ").toUpperCase()) + "</div>" + toolbar + wetter + chart + table;
 }
 function shortName(s) { return String(s).length > 14 ? String(s).slice(0, 12) + "…" : String(s); }
@@ -2287,6 +2291,12 @@ function cmpFmt(v, metric) {
   if (e === "%") return v.toFixed(1).replace(".", ",") + " %";
   if (metric === "wartezeit_min" || metric === "zufriedenheit") return v.toFixed(2).replace(".", ",") + (e ? " " + e : "");
   return Math.round(v).toLocaleString("de-DE") + (e ? " " + e : "");
+}
+/* Wie cmpFmt, aber ohne Einheit — die steht in der Kopfzeile/Überschrift */
+function cmpFmtN(v, metric) {
+  var s = cmpFmt(v, metric), e = EINHEIT[metric] || "";
+  if (e && s.slice(-e.length) === e) s = s.slice(0, -e.length).trim();
+  return s;
 }
 
 /* =========================== 10 · Einstellungen (Drawer) =========================== */
