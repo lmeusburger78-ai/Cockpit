@@ -2332,6 +2332,78 @@ function costOnlyCenters() {
   return Object.keys(only).sort();
 }
 
+/* --- Schwund & Ausschuss je Stand (fiktive Betriebswerte) --- */
+/* Umrechnung: wie viel Stück Rohware (Früchte/Gemüse) je Becher, klein · groß */
+var ROHSTOFF = {
+  "Orangensaft":          { roh: "Orangen",            klein: 3, gross: 6 },
+  "Apfelsaft":            { roh: "Äpfel",               klein: 2, gross: 4 },
+  "Zitronensaft":         { roh: "Zitronen",            klein: 2, gross: 4 },
+  "Orangen-Karottensaft": { roh: "Orangen + Karotten",  klein: 3, gross: 6 },
+  "Apfel-Karottensaft":   { roh: "Äpfel + Karotten",    klein: 3, gross: 6 }
+};
+var ROH_DEFAULT = { roh: "Rohware", klein: 2, gross: 4 };
+var ROH_KOSTEN = 0.12;  /* fiktiver Einkaufspreis je Stück Rohware (€) */
+function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rngFrom(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+/* Verlustquoten je Stand — fiktiv, aber je Stand stabil und unterschiedlich */
+function wasteRates(stand) {
+  var r = rngFrom(hashStr("schwund|" + stand));
+  return { spill: 0.015 + r() * 0.020, spoil: 0.020 + r() * 0.035, reject: 0.008 + r() * 0.017 };
+}
+function deInt(v) { return Math.round(v).toLocaleString("de-DE"); }
+function dePct(v) { return v.toFixed(1).replace(".", ",") + " %"; }
+function schwundSectionHTML() {
+  var n = node();
+  if (!n.wetter.std) return "";                 /* nur wenn ein Stand im Fokus ist */
+  var stand = n.wetter.std, prods = n.produkte || [];
+  if (!prods.length) return "";
+  var beKlein = 0, beGross = 0, rohGesamt = 0;
+  var rows = prods.map(function (p) {
+    var rz = ROHSTOFF[p.produkt] || ROH_DEFAULT;
+    var roh = p.becher_klein * rz.klein + p.becher_gross * rz.gross;
+    beKlein += p.becher_klein; beGross += p.becher_gross; rohGesamt += roh;
+    return { name: p.produkt, roh: rz.roh, k: rz.klein, g: rz.gross, becher: p.becher, rohStk: roh };
+  }).sort(function (a, b) { return b.rohStk - a.rohStk; });
+  var becher = beKlein + beGross;
+  if (!becher) return "";
+
+  var wr = wasteRates(stand);
+  var verschuettet = Math.round(becher * wr.spill);      /* Becher-Äquivalent */
+  var ausschuss    = Math.round(becher * wr.reject);     /* fehlerhaft ausgeschenkte Becher */
+  var verdorben    = Math.round(rohGesamt * wr.spoil);   /* Stück Rohware */
+  var rohProBecher = rohGesamt / becher;
+  var kosten = verdorben * ROH_KOSTEN + (verschuettet + ausschuss) * rohProBecher * ROH_KOSTEN;
+  var verlorenBecherAeq = verschuettet + ausschuss + verdorben / (rohProBecher || 1);
+  var quotePct = verlorenBecherAeq / (becher + verlorenBecherAeq) * 100;
+
+  function tile(lbl, val, unit, sub, cls) {
+    return '<div class="kpi"><div class="lbl">' + esc(lbl) + "</div>" +
+      '<div class="val">' + esc(val) + (unit ? '<span class="u">' + esc(unit) + "</span>" : "") + "</div>" +
+      '<div style="font-size:11px;color:var(--muted);margin-top:3px">' + esc(sub) + "</div></div>";
+  }
+  var strip = '<div class="kpistrip">' +
+    tile("Schwundquote", dePct(quotePct), "", "Becher-Äquiv. verloren", "") +
+    tile("Verschüttet", deInt(verschuettet), "Becher", dePct(wr.spill * 100) + " der Menge", "") +
+    tile("Ausschuss / Fehlausschank", deInt(ausschuss), "Becher", dePct(wr.reject * 100) + " der Menge", "") +
+    tile("Verdorbenes Rohmaterial", deInt(verdorben), "Stück", dePct(wr.spoil * 100) + " der Rohware", "") +
+    tile("Schwundkosten (fiktiv)", fmtShort(kosten, "umsatz_eur"), "", "≈ " + ROH_KOSTEN.toFixed(2).replace(".", ",") + " € / Stück Rohware", "") +
+    "</div>";
+
+  var thead = "<tr><th>PRODUKT</th><th>ROHWARE</th><th>JE KLEIN</th><th>JE GROSS</th><th>VERK. BECHER</th><th>ROHMATERIAL</th></tr>";
+  var tbody = rows.map(function (r) {
+    return "<tr><td>" + esc(r.name) + "</td><td>" + esc(r.roh) + "</td>" +
+      "<td>" + r.k + "</td><td>" + r.g + "</td>" +
+      "<td>" + deInt(r.becher) + " Stk</td><td>" + deInt(r.rohStk) + " Stück</td></tr>";
+  }).join("");
+  tbody += '<tr class="total"><td>Gesamt</td><td></td><td></td><td></td><td>' + deInt(becher) + " Stk</td><td>" + deInt(rohGesamt) + " Stück</td></tr>";
+
+  return '<div class="sec"><div class="sec-head"><div class="sec-title">Schwund &amp; Ausschuss · ' + esc(stand) + "</div>" +
+    '<div class="sec-note">fiktive Betriebswerte · Umrechnung: Stück Rohware je Becher</div></div>' +
+    strip +
+    '<div class="tbl-scroll" style="margin-top:14px"><table class="t"><thead>' + thead + "</thead><tbody>" + tbody + "</tbody></table></div>" +
+    '<div class="sec-note" style="margin-top:8px">Rohmaterialbedarf = verkaufte Becher × Stück je Becher. Verluste als Anteil von Menge bzw. Rohware; Kosten mit ' + ROH_KOSTEN.toFixed(2).replace(".", ",") + ' € je Stück Rohware.</div></div>';
+}
+
 function renderUebersicht() {
   var n = node();
   var body =
@@ -2341,6 +2413,7 @@ function renderUebersicht() {
     splitSectionHTML() +
     resultSectionHTML() +
     produkteSectionHTML() +
+    schwundSectionHTML() +
     tagesSectionHTML() +
     wetterSectionHTML() +
     detailTableHTML();
