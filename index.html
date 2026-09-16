@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Intervall">
+  <meta name="description" content="Intervall-Trainingstimer mit Ring-Countdown, Sets, Pausen, Ton und Presets.">
+  <title>Interval Trainer</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap"></noscript>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Register the service worker so the app works offline / installs as a PWA.
+    // No-ops in sandboxes (e.g. the artifact preview) where SW is unavailable.
+    if ('serviceWorker' in navigator) {
+      addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+    // Ask the browser to keep our localStorage data (presets, settings) and not
+    // evict it automatically. Matters on iOS, which otherwise clears storage
+    // after periods of inactivity. Best-effort; ignored where unsupported.
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(() => {});
+    }
+  </script>
+</head>
+<body>
+  <!-- Device frame (bezel on desktop, full-bleed on phones) -->
+  <div class="device" id="device">
+    <div class="island" aria-hidden="true"></div>
+
+    <div class="statusbar" aria-hidden="true">
+      <span class="sb-time" id="sbTime">9:41</span>
+      <span class="sb-icons">
+        <svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7"/><rect x="4.8" y="5" width="3.2" height="7" rx="0.7"/><rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7"/><rect x="14.4" y="0" width="3.2" height="12" rx="0.7"/></svg>
+        <svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5C5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z"/><path d="M8.5 6.8C9.9 6.8 11.1 7.3 12 8.2L13.1 7.1C11.8 5.9 10.2 5.1 8.5 5.1C6.8 5.1 5.2 5.9 3.9 7.1L5 8.2C5.9 7.3 7.1 6.8 8.5 6.8Z"/><circle cx="8.5" cy="10.5" r="1.5"/></svg>
+        <svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-opacity="0.35"/><rect x="2" y="2" width="20" height="9" rx="2"/><path d="M25 4.5V8.5C25.8 8.2 26.5 7.2 26.5 6.5C26.5 5.8 25.8 4.8 25 4.5Z" fill-opacity="0.4"/></svg>
+      </span>
+    </div>
+
+    <div class="screen" id="screen">
+
+      <!-- ============ SETUP / HOME ============ -->
+      <section class="view view-setup" id="view-setup" data-view="setup">
+        <header class="setup-head">
+          <div class="head-titles">
+            <div class="eyebrow">Workout</div>
+            <h1 class="title-lg" id="setupTitle">Leistung</h1>
+          </div>
+          <button class="gear-btn" id="openSettings" aria-label="Einstellungen">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </header>
+
+        <button class="btn-start" id="startBtn">
+          <span class="btn-start-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l12-7z"/></svg></span>
+          <span class="btn-start-text">Start</span>
+          <span class="btn-start-meta" id="startMeta">51:00 · 2 Sets</span>
+        </button>
+
+        <!-- Übersicht (nur Anzeige) -->
+        <div class="dual-cards">
+          <div class="metric-card work">
+            <span class="metric-eyebrow work-c">Belastung</span>
+            <span class="metric-val" id="setupWork">02:00</span>
+          </div>
+          <div class="metric-card rest">
+            <span class="metric-eyebrow rest-c">Pause</span>
+            <span class="metric-val" id="setupRest">01:00</span>
+          </div>
+        </div>
+
+        <div class="overview-row">
+          <div class="ov-item"><div class="metric-eyebrow muted">Runden</div><div class="ov-val" id="ovRounds">8</div></div>
+          <div class="ov-item"><div class="metric-eyebrow muted">Sets</div><div class="ov-val" id="ovSets">2</div></div>
+          <div class="ov-item"><div class="metric-eyebrow muted">Große Pause</div><div class="ov-val" id="ovBigBreak">05:00</div></div>
+        </div>
+
+        <div class="row-between mt24">
+          <div class="eyebrow" id="sequenceLabel">Ablauf · 52:00 total</div>
+          <div class="eyebrow dim" id="sequenceSets">2 Sets × 8</div>
+        </div>
+        <div class="sequence-list" id="sequenceList"></div>
+
+        <div class="forecast" id="forecast">
+          <div class="row-center-gap">
+            <span class="dot work-bg"></span>
+            <span class="forecast-eyebrow">Nonstop-Prognose</span>
+          </div>
+          <div class="forecast-grid">
+            <div>
+              <div class="mini-eyebrow">Dauer gesamt</div>
+              <div class="forecast-num" id="forecastTotal">52:00</div>
+            </div>
+            <div>
+              <div class="mini-eyebrow">Fertig um</div>
+              <div class="forecast-num accent-c" id="forecastFinish">–</div>
+            </div>
+          </div>
+          <div class="forecast-foot">
+            <span id="forecastSetsLine">2 Sets · 16 Runden</span>
+            <span id="forecastBreakLine">+ 1× große Pause 05:00</span>
+          </div>
+        </div>
+        <div class="forecast manual" id="forecastManual" hidden>
+          <div class="fm-title">Manueller Modus · keine Zeitprognose</div>
+          <div class="fm-sub">Du steuerst jede Phase selbst mit Pause/Start.</div>
+        </div>
+
+        <button class="settings-link" id="openSettings2">
+          <span>Zeiten, Runden &amp; Programm anpassen</span>
+          <span class="settings-link-arrow">→</span>
+        </button>
+      </section>
+
+      <!-- ============ TRAINING ============ -->
+      <section class="view view-training" id="view-training" data-view="training">
+        <div class="tr-top">
+          <button class="tr-exit" id="exitBtn" aria-label="Training beenden">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+          <div class="tr-info">
+            <div class="tr-phase"><span class="phase-dot-inline" id="phaseDot"></span><span id="phaseLabel">BELASTUNG</span></div>
+            <div class="tr-round"><span class="round-now" id="roundNow">05</span><span class="round-tot" id="roundTot">/08</span></div>
+            <div class="tr-round-sub"><span id="phaseTotal">02:00</span> · Round</div>
+          </div>
+        </div>
+
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 340 340">
+            <circle class="ring-track" cx="170" cy="170" r="158"/>
+            <circle class="ring-prog" id="ringProg" cx="170" cy="170" r="158" transform="rotate(-90 170 170)"/>
+          </svg>
+          <div class="ring-center" id="ringCenter">
+            <div class="timer-big" id="timerBig">02:00</div>
+            <div class="timer-sub" id="timerSub">GO · PUSH</div>
+          </div>
+        </div>
+
+        <div class="tr-bottom">
+          <div class="tr-next">
+            <div class="tr-next-inner">
+              <div>
+                <div class="mini-eyebrow">Nächster</div>
+                <div class="tr-next-label" id="nextLabel">01:00 Pause</div>
+              </div>
+              <div class="tr-auto" id="trAuto">AUTO · ON</div>
+            </div>
+          </div>
+
+          <div class="nav-chips">
+            <button class="chip" data-nav="setback">« SET −1</button>
+            <button class="chip" data-nav="roundback">‹ RUNDE</button>
+            <button class="chip" data-nav="roundfwd">RUNDE ›</button>
+            <button class="chip" data-nav="setfwd">SET +1 »</button>
+          </div>
+
+          <div class="transport">
+            <button class="tp-btn" id="resetBtn" aria-label="Zurücksetzen">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            </button>
+            <button class="tp-play" id="playBtn" aria-label="Start/Pause">
+              <svg id="iconPause" width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="4" width="5" height="16" rx="2"/><rect x="13.5" y="4" width="5" height="16" rx="2"/></svg>
+              <svg id="iconPlay" width="40" height="40" viewBox="0 0 24 24" fill="currentColor" hidden><path d="M8 4.5c0-.8.9-1.3 1.6-.9l10 7c.6.5.6 1.4 0 1.9l-10 7c-.7.4-1.6-.1-1.6-.9V4.5z"/></svg>
+            </button>
+            <button class="tp-btn" id="skipBtn" aria-label="Phase überspringen">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5v14l9-7-9-7z"/><rect x="16" y="5" width="2.5" height="14" rx=".5"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ BIG BREAK ============ -->
+      <section class="view view-bigbreak" id="view-bigbreak" data-view="bigbreak">
+        <button class="tr-exit bb-exit" id="exitBtn2" aria-label="Training beenden">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <div class="bb-top">
+          <span class="dot gold-bg"></span>
+          <span class="bb-eyebrow">Große Pause</span>
+        </div>
+        <div class="bb-sets">
+          <div class="mini-eyebrow center" id="bbSetDone">Set 1 · abgeschlossen</div>
+          <div class="bb-set-flow">
+            <span class="bb-set-old" id="bbSetOld">Set 1</span>
+            <span class="gold-c">→</span>
+            <span id="bbSetNew">Set 2</span>
+          </div>
+        </div>
+        <div class="bb-center">
+          <div class="bb-timer" id="bbTimer">05:00</div>
+          <div class="bb-sub">Atmen · Trinken · Erholen</div>
+        </div>
+        <div class="bb-nextcard">
+          <div class="mini-eyebrow">Nächstes Set</div>
+          <div class="bb-next-grid">
+            <div><div class="bb-k">Runden</div><div class="bb-v" id="bbNextRounds">8</div></div>
+            <div><div class="bb-k">Belastung</div><div class="bb-v work-c" id="bbNextWork">02:00</div></div>
+            <div><div class="bb-k">Pause</div><div class="bb-v rest-c" id="bbNextRest">01:00</div></div>
+          </div>
+        </div>
+        <div class="bb-actions">
+          <button class="btn-ghost-gold" id="bbAddBtn">+ 1:00</button>
+          <button class="btn-gold" id="bbSkipBtn">Skip</button>
+        </div>
+      </section>
+
+      <!-- ============ DONE ============ -->
+      <section class="view view-done" id="view-done" data-view="done">
+        <div class="dn-top">
+          <span class="dot rest-bg"></span>
+          <span class="dn-eyebrow">Workout · Fertig</span>
+        </div>
+        <h2 class="dn-title">Stark. Alles<br>durchgezogen.</h2>
+        <div class="dn-meta" id="dnMeta">Leistung · 2 Sets × 8 Runden</div>
+
+        <div class="dn-total">
+          <div class="dn-total-head">
+            <span class="mini-eyebrow">Gesamt</span>
+            <span class="dn-delta" id="dnDelta"></span>
+          </div>
+          <div class="dn-total-val" id="dnTotal">00:00</div>
+        </div>
+
+        <div class="dn-split">
+          <div class="dn-split-card work">
+            <div class="metric-eyebrow work-c">Belastung</div>
+            <div class="dn-split-val" id="dnWork">00:00</div>
+            <div class="dn-split-sub" id="dnWorkSub">0 Runden</div>
+          </div>
+          <div class="dn-split-card rest">
+            <div class="metric-eyebrow rest-c">Pause</div>
+            <div class="dn-split-val" id="dnRest">00:00</div>
+            <div class="dn-split-sub" id="dnRestSub">0× klein</div>
+          </div>
+        </div>
+
+        <div class="dn-grid-card">
+          <div class="mini-eyebrow mb12">Runden · abgeschlossen</div>
+          <div class="dn-round-grid" id="dnRoundGrid"></div>
+        </div>
+
+        <div class="dn-actions">
+          <button class="btn-solid-teal" id="dnRestart">Nochmal starten</button>
+          <button class="btn-outline" id="dnSavePreset">Als Preset speichern</button>
+          <button class="btn-text" id="dnHome">Zum Setup →</button>
+        </div>
+      </section>
+
+      <!-- ============ SETTINGS ============ -->
+      <section class="view view-settings" id="view-settings" data-view="settings">
+        <header class="setup-head">
+          <div>
+            <div class="eyebrow">Einstellungen</div>
+            <h1 class="title-lg">Training &amp; App</h1>
+          </div>
+          <button class="icon-btn round" id="closeSettings" aria-label="Schließen">×</button>
+        </header>
+
+        <div class="sec-label work-c">Programm</div>
+        <div class="prog-note">Gespeichertes Programm wählen — oder unten die aktuelle Konfiguration als Preset sichern.</div>
+        <div class="preset-strip" id="presetStrip"></div>
+
+        <div class="sec-label work-c mt24">Training</div>
+        <div class="group">
+          <div class="grp-row">
+            <div><div class="opt-title">Belastungszeit</div><div class="opt-sub">pro Runde</div></div>
+            <div class="time-stepper">
+              <button class="round-btn" data-step="work" data-dir="-1">−</button>
+              <span class="time-val work-c editable" id="stWork" data-edit="work" role="button" tabindex="0">02:00</span>
+              <button class="round-btn work" data-step="work" data-dir="1">+</button>
+            </div>
+          </div>
+          <div class="grp-row">
+            <div><div class="opt-title">Pausenzeit</div><div class="opt-sub">nach jeder Runde</div></div>
+            <div class="time-stepper">
+              <button class="round-btn" data-step="rest" data-dir="-1">−</button>
+              <span class="time-val rest-c editable" id="stRest" data-edit="rest" role="button" tabindex="0">01:00</span>
+              <button class="round-btn rest" data-step="rest" data-dir="1">+</button>
+            </div>
+          </div>
+          <div class="grp-row">
+            <div><div class="opt-title">Runden pro Set</div></div>
+            <div class="time-stepper">
+              <button class="round-btn" data-step="rounds" data-dir="-1">−</button>
+              <span class="time-val" id="stRounds">8</span>
+              <button class="round-btn" data-step="rounds" data-dir="1">+</button>
+            </div>
+          </div>
+          <div class="grp-row">
+            <div><div class="opt-title">Anzahl Sets</div></div>
+            <div class="time-stepper">
+              <button class="round-btn" data-step="sets" data-dir="-1">−</button>
+              <span class="time-val" id="stSets">2</span>
+              <button class="round-btn" data-step="sets" data-dir="1">+</button>
+            </div>
+          </div>
+          <div class="grp-row last">
+            <div><div class="opt-title">Große Pause zw. Sets</div><div class="opt-sub">Erholung zwischen Sets</div></div>
+            <div class="time-stepper">
+              <button class="round-btn" data-step="bigbreak" data-dir="-1">−</button>
+              <span class="time-val gold-c editable" id="stBigBreak" data-edit="bigbreak" role="button" tabindex="0">05:00</span>
+              <button class="round-btn gold" data-step="bigbreak" data-dir="1">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-label rest-c">Ablauf</div>
+        <div class="group">
+          <div class="grp-row">
+            <div><div class="opt-title">Auto-Play · Nonstop</div><div class="opt-sub">Aus = manuell Pause/Start drücken</div></div>
+            <button class="switch" data-cfgtoggle="autoPlay" role="switch"><span class="knob"></span></button>
+          </div>
+          <div class="grp-row last">
+            <div><div class="opt-title">Große Pause aktiv</div><div class="opt-sub" id="bigBreakSub">Zwischen Sets</div></div>
+            <button class="switch gold" data-cfgtoggle="bigBreakOn" role="switch"><span class="knob"></span></button>
+          </div>
+        </div>
+
+        <div class="sec-label gold-c">Speichern</div>
+        <div class="group pad">
+          <div class="opt-title">Als Preset speichern</div>
+          <div class="opt-sub mb12">Aktuelle Konfiguration mit Namen ablegen</div>
+          <div class="save-row">
+            <input id="presetName" placeholder="z.B. Boxen 4× 3:00" autocomplete="off">
+            <button class="btn-pill accent sm" id="savePresetBtn">Speichern</button>
+          </div>
+        </div>
+
+        <div class="sec-label rest-c">Signal &amp; Feedback</div>
+        <div class="group">
+          <div class="grp-row">
+            <div><div class="opt-title">Ton bei Phasenwechsel</div></div>
+            <button class="switch" data-toggle="sound" role="switch"><span class="knob"></span></button>
+          </div>
+          <div class="grp-row">
+            <div><div class="opt-title">Countdown 5·4·3·2·1</div><div class="opt-sub">App zählt letzte 5 Sekunden runter</div></div>
+            <button class="switch" data-toggle="countdown" role="switch"><span class="knob"></span></button>
+          </div>
+          <div class="grp-row">
+            <div><div class="opt-title">Vibration</div></div>
+            <button class="switch" data-toggle="vibration" role="switch"><span class="knob"></span></button>
+          </div>
+          <div class="grp-row last">
+            <div><div class="opt-title">Sprachansage</div><div class="opt-sub">„Belastung — 3, 2, 1 — los!"</div></div>
+            <button class="switch" data-toggle="voice" role="switch"><span class="knob"></span></button>
+          </div>
+        </div>
+
+        <div class="sec-label muted">App</div>
+        <div class="group">
+          <div class="grp-row">
+            <div><div class="opt-title">Display an lassen</div></div>
+            <button class="switch" data-toggle="keepDisplay" role="switch"><span class="knob"></span></button>
+          </div>
+          <div class="grp-row last">
+            <div><div class="opt-title dim">Version</div></div>
+            <div class="version">1.0.0</div>
+          </div>
+        </div>
+
+        <button class="btn-reset" id="resetAllBtn">
+          <span class="btn-reset-title">Alle Einstellungen zurücksetzen</span>
+          <span class="btn-reset-sub">Setzt Zeiten, Presets und Signal-Optionen auf den Auslieferungszustand zurück.</span>
+        </button>
+      </section>
+
+    </div>
+
+    <!-- Time picker (drop-up wheel) — only reachable from Settings -->
+    <div class="picker-backdrop" id="pickerBackdrop" hidden>
+      <div class="picker" id="picker">
+        <div class="grabber"></div>
+        <div class="picker-head">
+          <button class="picker-cancel" id="pickerCancel">Abbrechen</button>
+          <div class="picker-title" id="pickerTitle">Belastung</div>
+          <button class="picker-ok" id="pickerOk">OK</button>
+        </div>
+        <div class="wheels">
+          <div class="wheel-highlight"></div>
+          <div class="wheel" id="wheelMin" data-unit="Min"></div>
+          <div class="wheel-colon">:</div>
+          <div class="wheel" id="wheelSec" data-unit="Sek"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" hidden></div>
+
+    <!-- In-app confirm dialog -->
+    <div class="confirm-backdrop" id="confirmBackdrop" hidden>
+      <div class="confirm-box">
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" id="confirmCancel">Abbrechen</button>
+          <button class="confirm-ok" id="confirmOk">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-indicator" aria-hidden="true"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
