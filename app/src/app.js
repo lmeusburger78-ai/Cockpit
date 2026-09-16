@@ -1365,10 +1365,15 @@ function tagesSectionHTML() {
   var rain = rainDays(n.wetter.std);
   var dim = n.ebene >= 3 ? (n.ebene >= 4 ? "groesse" : "produkt") : "standort";
   var colorName = n.ebene >= 3 ? n.titel : n.wetter.std;
+  var strong = colorFor(colorName, dim);
+  var legend = '<div class="chart-legend lg">' +
+    '<span class="i"><span class="sw" style="background:' + strong + '"></span>Umsatz je Tag</span>' +
+    '<span class="i"><span class="sw" style="background:var(--track)"></span>Regentag (gedämpft)</span>' +
+    '<span class="i" style="color:' + cssv("--temp") + '"><span class="sw line"></span>Temperatur</span></div>';
   return '<div class="sec"><div class="sec-head"><div class="sec-title">Verkauf je Tag · ' + esc(n.titel) +
-    (n.ebene > 2 ? " am " + esc(n.wetter.std) : "") + "</div>" +
-    '<div class="sec-note">gedämpft = Regentage · rote Linie = Temperatur</div></div>' +
-    dayChart(n.taeglich, rain, { weather: n.wetter.taeglich, dim: dim, colorName: colorName }) + "</div>";
+    (n.ebene > 2 ? " am " + esc(n.wetter.std) : "") + "</div></div>" +
+    dayChart(n.taeglich, rain, { weather: n.wetter.taeglich, dim: dim, colorName: colorName }) +
+    legend + "</div>";
 }
 
 function wetterSectionHTML() {
