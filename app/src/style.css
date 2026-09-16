@@ -380,7 +380,7 @@ details.tbl .inner{margin-top:14px}
 svg .grid{stroke:var(--border)}
 svg .grid.dash{stroke-dasharray:2 3}
 svg text{font-family:'IBM Plex Sans'}
-svg .ax{fill:var(--muted);font-size:9px}
+svg .ax{fill:var(--muted);font-size:11px}
 svg .lbl{fill:var(--fg);font-size:9px;font-weight:600}
 svg .bar{transition:opacity 150ms ease}
 svg .bar.click{cursor:pointer}

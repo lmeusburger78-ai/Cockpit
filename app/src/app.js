@@ -876,17 +876,21 @@ function dayChart(days, rain, opts) {
   if (!days.length) return '<div class="chart-empty">Keine Tageswerte im Zeitraum.</div>';
   var wmap = {};
   (opts.weather || []).forEach(function (w) { wmap[w.datum] = w; });
-  var n = days.length, W = Math.max(CHART_TARGET_W, n * 9), H = 190, top = 10, bot = 26, plot = H - top - bot;
+  var n = days.length, W = Math.max(CHART_TARGET_W, n * 9);
+  /* Zwei getrennte Spuren: oben Temperatur (eigene °C-Achse), unten Umsatz (€-Achse) */
+  var top = 12, tempH = 46, gap = 14, bot = 26;
+  var uTop = top + tempH + gap, uPlot = 120, H = uTop + uPlot + bot;
   var max = niceMax(Math.max.apply(null, days.map(function (d) { return d.umsatz_eur; })));
   var bw = Math.max(3, (W - 40) / n - 3), step = (W - 40) / n;
   var strong = colorFor(opts.colorName || "", opts.dim || "produkt");
-  var muted = cssv("--track");
+  var muted = cssv("--track"), tempc = cssv("--temp");
+  var xAt = function (i) { return 34 + i * step; };
 
+  /* Umsatz-Balken (untere Spur), Regentage gedämpft */
   var bars = days.map(function (d, i) {
-    var h = Math.max(1, d.umsatz_eur / max * plot);
-    var x = 34 + i * step, isRain = !!rain[d.datum];
-    var w = wmap[d.datum];
-    return '<rect class="bar" x="' + x.toFixed(1) + '" y="' + (top + plot - h).toFixed(1) + '" width="' + bw.toFixed(1) +
+    var h = Math.max(1, d.umsatz_eur / max * uPlot);
+    var isRain = !!rain[d.datum], w = wmap[d.datum];
+    return '<rect class="bar" x="' + xAt(i).toFixed(1) + '" y="' + (uTop + uPlot - h).toFixed(1) + '" width="' + bw.toFixed(1) +
       '" height="' + h.toFixed(1) + '" fill="' + (isRain ? muted : strong) + '"><title>' +
       esc(fmtDE(d.datum) + " (" + d.wochentag + ") · " + fmtShort(d.umsatz_eur, "umsatz_eur") +
         (w ? " · " + w.temperatur_c.toFixed(1).replace(".", ",") + " °C" : "") +
@@ -894,37 +898,42 @@ function dayChart(days, rain, opts) {
       "</title></rect>";
   }).join("");
 
-  /* Temperaturlinie als Kontext, eigene Wetterfarbe */
-  var line = "";
-  if (opts.weather && opts.weather.length > 1) {
-    var tmin = Math.min.apply(null, opts.weather.map(function (w) { return w.temperatur_c; }));
-    var tmax = Math.max.apply(null, opts.weather.map(function (w) { return w.temperatur_c; }));
-    var rng = Math.max(1, tmax - tmin);
-    var pathd = days.map(function (d, i) {
-      var w = wmap[d.datum]; if (!w) return null;
-      var x = 34 + i * step + bw / 2;
-      var yv = top + plot * 0.42 - (w.temperatur_c - tmin) / rng * (plot * 0.34);
-      return (i === 0 ? "M" : "L") + x.toFixed(1) + "," + yv.toFixed(1);
-    }).filter(Boolean).join(" ");
-    line = '<path d="' + pathd + '" fill="none" stroke="' + cssv("--temp") + '" stroke-width="1.6" opacity=".9"/>';
-  }
-
-  var grid = axisTicks(max, 3).map(function (t) {
-    var yy = top + plot - t / max * plot;
+  /* €-Achse (links, untere Spur) */
+  var uGrid = axisTicks(max, 3).map(function (t) {
+    var yy = uTop + uPlot - t / max * uPlot;
     return '<line class="grid dash" x1="30" y1="' + yy.toFixed(1) + '" x2="' + W + '" y2="' + yy.toFixed(1) + '"/>' +
-      '<text class="ax" x="26" y="' + (yy + 3).toFixed(1) + '" text-anchor="end">' + esc(tickLabel(t, "umsatz_eur")) + "</text>";
+      '<text class="ax" x="26" y="' + (yy + 3).toFixed(1) + '" text-anchor="end">' + esc(tickLabel(t, "umsatz_eur")) + " €</text>";
   }).join("");
 
-  var monTicks = "";
-  var seen = {};
+  /* Temperatur (obere Spur) mit eigener, rot beschrifteter °C-Achse */
+  var tempG = "", tLine = "";
+  if (opts.weather && opts.weather.length > 1) {
+    var temps = opts.weather.map(function (w) { return w.temperatur_c; });
+    var tLo = Math.floor(Math.min.apply(null, temps) / 5) * 5;
+    var tHi = Math.ceil(Math.max.apply(null, temps) / 5) * 5;
+    if (tHi <= tLo) tHi = tLo + 5;
+    var yTemp = function (t) { return top + tempH - (t - tLo) / (tHi - tLo) * tempH; };
+    tempG = [tLo, Math.round((tLo + tHi) / 2), tHi].map(function (tt) {
+      var yy = yTemp(tt);
+      return '<line class="grid dash" x1="30" y1="' + yy.toFixed(1) + '" x2="' + W + '" y2="' + yy.toFixed(1) + '"/>' +
+        '<text class="ax" x="26" y="' + (yy + 3).toFixed(1) + '" text-anchor="end" fill="' + tempc + '">' + tt + " °</text>";
+    }).join("");
+    var pathd = days.map(function (d, i) {
+      var w = wmap[d.datum]; if (!w) return null;
+      return (i === 0 ? "M" : "L") + (xAt(i) + bw / 2).toFixed(1) + "," + yTemp(w.temperatur_c).toFixed(1);
+    }).filter(Boolean).join(" ");
+    tLine = '<path d="' + pathd + '" fill="none" stroke="' + tempc + '" stroke-width="1.8" opacity=".95"/>';
+  }
+
+  var monTicks = "", seen = {};
   days.forEach(function (d, i) {
     var mo = d.datum.slice(0, 7);
     if (seen[mo]) return;
     seen[mo] = 1;
-    monTicks += '<text class="ax" x="' + (34 + i * step).toFixed(1) + '" y="' + (H - 8) + '">' + esc(MON_KURZ[mo.slice(5, 7)]) + "</text>";
+    monTicks += '<text class="ax" x="' + xAt(i).toFixed(1) + '" y="' + (H - 8) + '">' + esc(MON_KURZ[mo.slice(5, 7)]) + "</text>";
   });
 
-  return chartWrap(W, H, grid + bars + line + monTicks, "Verkauf je Tag");
+  return chartWrap(W, H, tempG + uGrid + bars + tLine + monTicks, "Verkauf je Tag");
 }
 
 /* --- Wetter-Kontext: Temperaturband + Niederschlag, kompakt --- */
