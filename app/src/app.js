@@ -1560,20 +1560,17 @@ function schwundSectionHTML() {
 
 /* ===================== Prozesse · Prozesslandkarte ===================== */
 var PROZESSE = {
-  management: ["Strategie planen & steuern", "Finanzen & Controlling steuern",
+  management: ["Strategie planen & steuern", "Finanzen & Controlling steuern (Order-to-Cash)",
     "Qualitäts- & Lebensmittelsicherheit überwachen", "Risiken & Compliance steuern"],
   kern: [
     { code: "i2p", titel: "Idea to Product", name: "Rezepte entwickeln",
       schritte: ["Marktidee & Trend sichten", "Rezept entwickeln", "Muster verkosten", "Rezeptur freigeben", "Nährwerte & Kennzeichnung", "Ins Sortiment aufnehmen"] },
-    { code: "s2s", titel: "Source to Stock", name: "Zutaten beschaffen",
-      schritte: ["Bedarf ermitteln", "Lieferanten auswählen", "Bestellung auslösen", "Wareneingang prüfen", "Gekühlt einlagern", "Bestand buchen"] },
     { code: "m2s", titel: "Make to Stock", name: "Limonade herstellen",
-      schritte: ["Produktion planen", "Zutaten bereitstellen", "Ansetzen & Mischen", "Abfüllen & Etikettieren", "Qualität prüfen", "Fertigware einlagern"] },
-    { code: "o2c", titel: "Order to Cash", name: "Aufträge abwickeln",
-      schritte: ["Auftrag annehmen", "Auftrag prüfen & bestätigen", "Limonade produzieren", "Auftrag kommissionieren", "Auftrag ausliefern", "Auftrag abschließen"] }
+      schritte: ["Produktion planen", "Zutaten bereitstellen", "Ansetzen & Mischen", "Abfüllen & Etikettieren", "Qualität prüfen", "Fertigware bereitstellen"] }
   ],
-  support: ["Lieferanten managen", "Lagerung & Kühlung sicherstellen", "Anlagen & Abfüllung warten",
-    "Buchhaltung & Stammdaten bearbeiten", "Marketing & Kundenservice betreiben", "HR & Schichtplanung durchführen"],
+  support: ["Zutaten beschaffen (Source to Stock)", "Lieferanten managen", "Lagerung & Kühlung sicherstellen",
+    "Anlagen & Abfüllung warten", "Buchhaltung & Stammdaten bearbeiten", "Marketing & Kundenservice betreiben",
+    "HR & Schichtplanung durchführen"],
   rechts: ["Wirtschaftlichkeit", "Nachhaltigkeit", "Kundenzufriedenheit"]
 };
 function renderProzesse() {
