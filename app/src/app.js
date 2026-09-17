@@ -91,7 +91,7 @@ var state = {
   role: null, pfad: [], from: null, to: null,
   splitMetric: "umsatz_eur", splitView: "kreis",
   standWahl: null, mode: "uebersicht", cmp: null, gran: "monat",
-  prodMetric: "menge", prodSize: "gesamt", prozessSel: "o2c",
+  prodMetric: "menge", prodSize: "gesamt", prozessOpen: null,
   docTab: "beginn", rangeKey: "all", user: "anna.huber"
 };
 state.from = F.dmin; state.to = F.dmax;
@@ -1578,11 +1578,11 @@ var PROZESSE = {
 };
 function renderProzesse() {
   var P = PROZESSE;
-  var sel = P.kern.some(function (k) { return k.code === state.prozessSel; }) ? state.prozessSel : P.kern[0].code;
+  var open = P.kern.some(function (k) { return k.code === state.prozessOpen; }) ? state.prozessOpen : null;
   var mgmt = P.management.map(function (x) { return '<div class="pbox pbox-m">' + esc(x) + "</div>"; }).join("");
   var supp = P.support.map(function (x) { return '<div class="pbox pbox-s">' + esc(x) + "</div>"; }).join("");
   var kern = P.kern.map(function (k) {
-    return '<button type="button" class="pchev pk' + (k.code === sel ? " on" : "") + '" data-act="prozess" data-arg="' + k.code + '">' +
+    return '<button type="button" class="pchev pk' + (k.code === open ? " on" : "") + '" data-act="prozess" data-arg="' + k.code + '" title="Ablauf öffnen">' +
       '<span class="pk-code">' + esc(k.titel) + '</span><span class="pk-name">' + esc(k.name) + "</span></button>";
   }).join("");
   var rechts = P.rechts.map(function (x) { return "<span>" + esc(x) + "</span>"; }).join("");
@@ -1595,15 +1595,24 @@ function renderProzesse() {
     "</div>" +
     '<div class="pmap-right">' + rechts + "</div>" +
   "</div>";
-  var k = P.kern.filter(function (x) { return x.code === sel; })[0];
-  var steps = k.schritte.map(function (s, i) {
-    return '<div class="pstep' + (i === 0 ? " first" : "") + '"><span class="ps-n">' + (i + 1) + "</span><span>" + esc(s) + "</span></div>";
-  }).join("");
-  var detail = '<div class="sec"><div class="sec-head"><div class="sec-title">Ablauf · ' + esc(k.titel) + " — " + esc(k.name) + "</div></div>" +
-    '<div class="pflow">' + steps + "</div>" +
-    '<div class="sec-note" style="margin-top:10px">Klick auf einen Kernprozess in der Landkarte zeigt hier seinen Ablauf.</div></div>';
+  var win = "";
+  if (open) {
+    var k = P.kern.filter(function (x) { return x.code === open; })[0];
+    var steps = k.schritte.map(function (s, i) {
+      return '<div class="pstep' + (i === 0 ? " first" : "") + '"><span class="ps-n">' + (i + 1) + "</span><span>" + esc(s) + "</span></div>";
+    }).join("");
+    win = '<div class="pwin open" data-act="prozessclose">' +
+      '<div class="pwin-card" data-act="noop">' +
+        '<div class="pwin-head"><div><div class="pwin-code">' + esc(k.titel) + '</div><div class="pwin-name">' + esc(k.name) + '</div></div>' +
+          '<button type="button" class="closex" data-act="prozessclose" title="Schließen">✕</button></div>' +
+        '<div class="pwin-body"><div class="pwin-sub">Prozessablauf · ' + k.schritte.length + ' Schritte</div>' +
+          '<div class="pflow">' + steps + "</div></div>" +
+      "</div></div>";
+  }
   return '<div class="scope">PROZESSLANDKARTE · LIMONADEN GMBH</div>' +
-    '<div class="sec">' + map + "</div>" + detail;
+    '<div class="sec">' + map +
+    '<div class="sec-note" style="margin-top:12px">Klick auf einen Kernprozess öffnet seinen Ablauf in einem eigenen Fenster.</div></div>' +
+    win;
 }
 
 function renderUebersicht() {
@@ -2560,7 +2569,8 @@ function onAction(act, arg, ev) {
     case "goto": goto(+arg); break;
     case "up": if (state.pfad.length) goto(state.pfad.length - 1); break;
     case "path": state.pfad = arg ? arg.split("|") : []; state.cmp = null; render(); break;
-    case "prozess": state.prozessSel = arg; render(); break;
+    case "prozess": state.prozessOpen = arg; render(); break;
+    case "prozessclose": state.prozessOpen = null; render(); break;
     case "splitmetric": state.splitMetric = arg; render(); break;
     case "splitview": state.splitView = arg; store("splitView", arg); render(); break;
     case "prodmetric": state.prodMetric = arg; render(); break;
@@ -2711,6 +2721,7 @@ document.addEventListener("keydown", function (e) {
   if (e.key !== "Escape") return;
   $("#modal").classList.remove("open");
   closeDrawer();
+  if (state.prozessOpen) { state.prozessOpen = null; render(); }
 });
 
 /* =========================== 13 · Deckfolie / Login =========================== */
