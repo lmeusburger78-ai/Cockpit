@@ -3128,8 +3128,10 @@ function renderVergleich() {
 
   /* ---- Δ-Tabelle ---- */
   var mehr = per.length > 1;
+  var tUnit = EINHEIT[metric] || "";
+  var uSuffix = tUnit ? " (" + tUnit + ")" : "";
   var head = "<tr><th>" + esc(serieLabel.toUpperCase()) + "</th>" +
-    per.map(function (p) { return "<th>" + esc(perLabel(p).toUpperCase()) + "</th>"; }).join("") + (mehr ? "<th>Δ</th>" : "") + "</tr>";
+    per.map(function (p) { return "<th>" + esc(perLabel(p).toUpperCase() + uSuffix) + "</th>"; }).join("") + (mehr ? "<th>Δ</th>" : "") + "</tr>";
   var dcell = function (ys) {
     var f = ys[0], l = ys[ys.length - 1];
     if (f == null || l == null || f === 0) return '<td class="dim">–</td>';
