@@ -415,7 +415,7 @@ function computeNode() {
     kacheln: kacheln, kinder: kinder, kinder_names: kinder_names,
     vergleich_label: vlabel, kind_ebene: "ebene_" + (ebene + 1),
     monat: monat, waterfall: waterfall, produkte: produkte, taeglich: taeglich,
-    metrik: m,
+    metrik: m, metrikPrev: mPrev,
     wetter: {
       std: std, ort: std && ORTE[std] ? ORTE[std].ort : null, taeglich: wt,
       temp: wt.length ? wmeanT : null, prec: wt.length ? wsumPrec : null,
@@ -1199,16 +1199,28 @@ function crumbsHTML() {
 
 function heroHTML() {
   var n = node(), m = n.metrik;
-  var lead = n.kacheln[0] || null;
-  var hero = lead ? lead : { id: "umsatz_eur", wert: m.umsatz_eur, prev: null };
-  var pill = "";
-  if (hero.prev != null && hero.prev !== 0) {
-    var d = (hero.wert - hero.prev) / Math.abs(hero.prev) * 100;
-    var gut = (d >= 0) === (KPIS[hero.id].richtung === "groesser_ist_besser");
-    pill = '<span class="pill ' + (Math.abs(d) < 0.05 ? "flat" : gut ? "up" : "down") + '">' +
-      (d >= 0 ? "▲ " : "▼ ") + Math.abs(d).toFixed(1).replace(".", ",") + " % " + esc(n.vergleich_label) + "</span>";
+  var sm = effSplitMetric(n);   // Hero folgt dem Umschalter Umsatz/Ausgaben/Gewinn
+  var hero, heroLabel;
+  if (sm) {
+    hero = { id: sm, wert: m[sm], prev: n.metrikPrev ? n.metrikPrev[sm] : null };
+    heroLabel = SPLIT_LBL[sm] || KPIS[sm].name;
+  } else {
+    var lead = n.kacheln[0];
+    hero = lead ? lead : { id: "umsatz_eur", wert: m.umsatz_eur, prev: null };
+    heroLabel = KPIS[hero.id] ? KPIS[hero.id].name : "";
   }
-  var strip = n.kacheln.slice(1).map(function (k) {
+  var pill = "";
+  if (hero.prev != null) {
+    var txt = null, dd;
+    if (EINHEIT[hero.id] === "%") { dd = hero.wert - hero.prev; txt = (dd >= 0 ? "▲ " : "▼ ") + Math.abs(dd).toFixed(1).replace(".", ",") + " %p"; }
+    else if (hero.id === "ergebnis_eur") { dd = hero.wert - hero.prev; txt = (dd >= 0 ? "▲ " : "▼ ") + fmtShort(Math.abs(dd), "umsatz_eur"); }
+    else if (hero.prev !== 0) { dd = (hero.wert - hero.prev) / Math.abs(hero.prev) * 100; txt = (dd >= 0 ? "▲ " : "▼ ") + Math.abs(dd).toFixed(1).replace(".", ",") + " %"; }
+    if (txt != null) {
+      var gutH = (dd >= 0) === (KPIS[hero.id].richtung === "groesser_ist_besser");
+      pill = '<span class="pill ' + (Math.abs(dd) < 0.005 ? "flat" : gutH ? "up" : "down") + '">' + esc(txt) + " " + esc(n.vergleich_label) + "</span>";
+    }
+  }
+  var strip = n.kacheln.filter(function (k) { return k.id !== hero.id; }).map(function (k) {
     var p = fmtParts(k.wert, k.id);
     var dot = k.ampel ? '<span class="dot" style="background:' + ampelColor(k.ampel) + '"></span>' : "";
     var dlt = "";
@@ -1228,7 +1240,7 @@ function heroHTML() {
 
   var pHero = fmtParts(hero.wert, hero.id);
   return '<div class="hero"><div class="hero-row"><div class="hero-val">' + esc(pHero.n) + (pHero.u ? " " + esc(pHero.u) : "") + "</div>" + pill + "</div>" +
-    '<div class="hero-sub" style="margin-top:6px">' + esc(KPIS[hero.id] ? KPIS[hero.id].name : "") + " · " + esc(fmtDE(state.from)) + " – " + esc(fmtDE(state.to)) + "</div></div>" +
+    '<div class="hero-sub" style="margin-top:6px">' + esc(heroLabel) + " · " + esc(fmtDE(state.from)) + " – " + esc(fmtDE(state.to)) + "</div></div>" +
     (strip ? '<div class="kpistrip">' + strip + "</div>" : "");
 }
 
@@ -1259,6 +1271,19 @@ function weatherStripHTML() {
     "<span>Regentage <b>" + w.regentage + "</b></span></div>";
 }
 
+/* Kandidaten des Aufteilungs-Umschalters (Umsatz/Ausgaben/Gewinn) für diesen Knoten */
+function splitCands(n) {
+  if (!(n.kann_tiefer && n.kinder.length)) return [];
+  return SPLIT_ORDER.filter(function (p) {
+    return KPIS[p[0]] && n.kinder.some(function (r) { return r[p[0]] != null; });
+  });
+}
+/* Die tatsächlich aktive Kennzahl des Umschalters (oder null, wenn keiner sichtbar ist) */
+function effSplitMetric(n) {
+  var c = splitCands(n);
+  if (!c.length) return null;
+  return c.some(function (p) { return p[0] === state.splitMetric; }) ? state.splitMetric : c[0][0];
+}
 function splitSectionHTML() {
   var n = node();
   var hat = n.kann_tiefer && n.kinder.length;
@@ -1268,9 +1293,7 @@ function splitSectionHTML() {
     var tc = trendChart(n.monat, kid);
     return tc ? '<div class="sec"><div class="sec-head"><div class="sec-title">' + esc(KPIS[kid].name) + " über die Monate</div></div>" + tc + "</div>" : "";
   }
-  var cands = SPLIT_ORDER.filter(function (p) {
-    return KPIS[p[0]] && n.kinder.some(function (r) { return r[p[0]] != null; });
-  });
+  var cands = splitCands(n);
   if (!cands.some(function (p) { return p[0] === state.splitMetric; })) state.splitMetric = cands.length ? cands[0][0] : "umsatz_eur";
   var metric = state.splitMetric;
   var dim = dimOfEbene(n.ebene + 1, metric);
