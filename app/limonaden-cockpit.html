@@ -659,6 +659,48 @@ html[data-theme="dark"] .drawer{box-shadow:-16px 0 40px rgba(0,0,0,.5)}
   .cmd,.drawer,.scrim,#deck,.modal{display:none!important}
 }
 
+/* ===================== Prozesse · Prozesslandkarte ===================== */
+.pmap{display:flex;gap:8px;align-items:stretch;background:#efe3c6;border:1px solid #d8c39a;
+  border-radius:12px;padding:12px;overflow-x:auto}
+.pmap-left,.pmap-right{flex:none;display:flex;gap:6px}
+.pmap-left>span,.pmap-right>span{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;
+  display:flex;align-items:center;justify-content:center;background:#e4cfa0;border:1px solid #cdae74;
+  border-radius:8px;padding:12px 7px;font:600 13px 'IBM Plex Sans';color:#5a4a2c;letter-spacing:.02em}
+.pmap-body{flex:1;display:flex;flex-direction:column;gap:10px;min-width:660px}
+.prow{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;
+  background:#f6efdd;border:1px solid #e6d8b6;border-radius:10px;padding:12px}
+.prow-lbl{font:600 15px 'IBM Plex Sans';color:#4a3d24;line-height:1.2}
+.pboxes{display:grid;gap:8px}
+.pboxes.g4{grid-template-columns:repeat(4,1fr)}
+.pboxes.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:820px){.pboxes.g4,.pboxes.g3{grid-template-columns:repeat(2,1fr)}}
+.pbox{border-radius:8px;padding:12px;font:600 14px 'IBM Plex Sans';text-align:center;min-height:56px;
+  display:flex;align-items:center;justify-content:center;line-height:1.25}
+.pbox-m{background:linear-gradient(180deg,#f2d97c,#e6bd45);border:1px solid #cc9f2e;color:#3d3113}
+.pbox-s{background:linear-gradient(180deg,#e2ded1,#cfc9b8);border:1px solid #b7b09b;color:#3a352a}
+.pkern{display:flex;gap:0;align-items:stretch}
+.pchev.pk{flex:1;position:relative;border:none;cursor:pointer;text-align:left;color:#fff;
+  padding:14px 24px 14px 28px;margin-right:-14px;
+  background:linear-gradient(180deg,#a2937c,#8d7c64);
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 50%,calc(100% - 16px) 100%,0 100%,16px 50%);
+  display:flex;flex-direction:column;gap:3px;transition:background .12s ease}
+.pchev.pk:first-child{clip-path:polygon(0 0,calc(100% - 16px) 0,100% 50%,calc(100% - 16px) 100%,0 100%);padding-left:18px}
+.pchev.pk:hover{background:linear-gradient(180deg,#94836b,#7d6c54)}
+.pchev.pk.on{background:linear-gradient(180deg,#7a6547,#5f4c33);box-shadow:inset 0 0 0 2.5px #f5c518}
+.pk-code{font:700 15px 'IBM Plex Sans'}
+.pk-name{font:500 13px 'IBM Plex Sans';opacity:.94}
+/* Detailablauf des gewählten Kernprozesses */
+.pflow{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 6px}
+@media(max-width:760px){.pflow{grid-template-columns:1fr}}
+.pstep{position:relative;color:#fff;background:linear-gradient(180deg,#a2937c,#8d7c64);
+  padding:16px 26px 16px 18px;font:600 15px 'IBM Plex Sans';display:flex;align-items:center;gap:10px;
+  clip-path:polygon(0 0,calc(100% - 18px) 0,100% 50%,calc(100% - 18px) 100%,0 100%,18px 50%)}
+.pstep.first{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 50%,calc(100% - 18px) 100%,0 100%);padding-left:18px}
+.pstep .ps-n{flex:none;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.22);
+  display:flex;align-items:center;justify-content:center;font:700 12px 'IBM Plex Sans'}
+:root[data-theme="dark"] .prow{background:#2a2419;border-color:#3c3320}
+:root[data-theme="dark"] .prow-lbl{color:#e6d3a6}
+
 </style>
 </head>
 <body>
@@ -790,6 +832,7 @@ html[data-theme="dark"] .drawer{box-shadow:-16px 0 40px rgba(0,0,0,.5)}
     <select class="sel" id="rangesel" aria-label="Zeitraum"></select>
     <span class="right">
       <button class="tab" id="tab-u" data-mode="uebersicht">Übersicht</button>
+      <button class="tab" id="tab-p" data-mode="prozesse">Prozesse</button>
       <button class="tab" id="tab-d" data-mode="dokumente" hidden>Dokumente</button>
       <button class="tab" id="tab-v" data-mode="vergleich">Vergleich</button>
       <button class="tab" id="tab-a" data-mode="analyse">Analyse</button>
@@ -963,7 +1006,7 @@ var state = {
   role: null, pfad: [], from: null, to: null,
   splitMetric: "umsatz_eur", splitView: "kreis",
   standWahl: null, mode: "uebersicht", cmp: null, gran: "monat",
-  prodMetric: "menge", prodSize: "gesamt",
+  prodMetric: "menge", prodSize: "gesamt", prozessSel: "o2c",
   docTab: "beginn", rangeKey: "all", user: "anna.huber"
 };
 state.from = F.dmin; state.to = F.dmax;
@@ -2430,6 +2473,54 @@ function schwundSectionHTML() {
     '<div class="sec-note" style="margin-top:8px">Rohmaterialbedarf = verkaufte Becher × Stück je Becher. Verluste als Anteil von Menge bzw. Rohware; Kosten mit ' + ROH_KOSTEN.toFixed(2).replace(".", ",") + ' € je Stück Rohware.</div></div>';
 }
 
+/* ===================== Prozesse · Prozesslandkarte ===================== */
+var PROZESSE = {
+  management: ["Strategie planen & steuern", "Finanzen & Controlling steuern",
+    "Qualitäts- & Lebensmittelsicherheit überwachen", "Risiken & Compliance steuern"],
+  kern: [
+    { code: "i2p", titel: "Idea to Product", name: "Rezepte entwickeln",
+      schritte: ["Marktidee & Trend sichten", "Rezept entwickeln", "Muster verkosten", "Rezeptur freigeben", "Nährwerte & Kennzeichnung", "Ins Sortiment aufnehmen"] },
+    { code: "s2s", titel: "Source to Stock", name: "Zutaten beschaffen",
+      schritte: ["Bedarf ermitteln", "Lieferanten auswählen", "Bestellung auslösen", "Wareneingang prüfen", "Gekühlt einlagern", "Bestand buchen"] },
+    { code: "m2s", titel: "Make to Stock", name: "Limonade herstellen",
+      schritte: ["Produktion planen", "Zutaten bereitstellen", "Ansetzen & Mischen", "Abfüllen & Etikettieren", "Qualität prüfen", "Fertigware einlagern"] },
+    { code: "o2c", titel: "Order to Cash", name: "Aufträge abwickeln",
+      schritte: ["Auftrag annehmen", "Auftrag prüfen & bestätigen", "Limonade produzieren", "Auftrag kommissionieren", "Auftrag ausliefern", "Auftrag abschließen"] }
+  ],
+  support: ["Lieferanten managen", "Lagerung & Kühlung sicherstellen", "Anlagen & Abfüllung warten",
+    "Buchhaltung & Stammdaten bearbeiten", "Marketing & Kundenservice betreiben", "HR & Schichtplanung durchführen"],
+  rechts: ["Wirtschaftlichkeit", "Nachhaltigkeit", "Kundenzufriedenheit"]
+};
+function renderProzesse() {
+  var P = PROZESSE;
+  var sel = P.kern.some(function (k) { return k.code === state.prozessSel; }) ? state.prozessSel : P.kern[0].code;
+  var mgmt = P.management.map(function (x) { return '<div class="pbox pbox-m">' + esc(x) + "</div>"; }).join("");
+  var supp = P.support.map(function (x) { return '<div class="pbox pbox-s">' + esc(x) + "</div>"; }).join("");
+  var kern = P.kern.map(function (k) {
+    return '<button type="button" class="pchev pk' + (k.code === sel ? " on" : "") + '" data-act="prozess" data-arg="' + k.code + '">' +
+      '<span class="pk-code">' + esc(k.titel) + '</span><span class="pk-name">' + esc(k.name) + "</span></button>";
+  }).join("");
+  var rechts = P.rechts.map(function (x) { return "<span>" + esc(x) + "</span>"; }).join("");
+  var map = '<div class="pmap">' +
+    '<div class="pmap-left"><span>Anforderungen aller Interessenspartner</span></div>' +
+    '<div class="pmap-body">' +
+      '<div class="prow"><div class="prow-lbl">Management-<br>Prozesse</div><div class="pboxes g4">' + mgmt + "</div></div>" +
+      '<div class="prow"><div class="prow-lbl">Wertschöpfende<br>Kernprozesse</div><div class="pkern">' + kern + "</div></div>" +
+      '<div class="prow"><div class="prow-lbl">Unterstützungs-<br>Prozesse</div><div class="pboxes g3">' + supp + "</div></div>" +
+    "</div>" +
+    '<div class="pmap-right">' + rechts + "</div>" +
+  "</div>";
+  var k = P.kern.filter(function (x) { return x.code === sel; })[0];
+  var steps = k.schritte.map(function (s, i) {
+    return '<div class="pstep' + (i === 0 ? " first" : "") + '"><span class="ps-n">' + (i + 1) + "</span><span>" + esc(s) + "</span></div>";
+  }).join("");
+  var detail = '<div class="sec"><div class="sec-head"><div class="sec-title">Ablauf · ' + esc(k.titel) + " — " + esc(k.name) + "</div></div>" +
+    '<div class="pflow">' + steps + "</div>" +
+    '<div class="sec-note" style="margin-top:10px">Klick auf einen Kernprozess in der Landkarte zeigt hier seinen Ablauf.</div></div>';
+  return '<div class="scope">PROZESSLANDKARTE · LIMONADEN GMBH</div>' +
+    '<div class="sec">' + map + "</div>" + detail;
+}
+
 function renderUebersicht() {
   var n = node();
   var body =
@@ -3350,6 +3441,7 @@ function render() {
   if (state.mode === "vergleich") html = renderVergleich();
   else if (state.mode === "dokumente") html = renderDokumente();
   else if (state.mode === "analyse") html = renderAnalyse();
+  else if (state.mode === "prozesse") html = renderProzesse();
   else html = renderUebersicht();
   el.innerHTML = html;
   if (state.rangeKey === "custom") injectDateInputs();
@@ -3383,6 +3475,7 @@ function onAction(act, arg, ev) {
     case "goto": goto(+arg); break;
     case "up": if (state.pfad.length) goto(state.pfad.length - 1); break;
     case "path": state.pfad = arg ? arg.split("|") : []; state.cmp = null; render(); break;
+    case "prozess": state.prozessSel = arg; render(); break;
     case "splitmetric": state.splitMetric = arg; render(); break;
     case "splitview": state.splitView = arg; store("splitView", arg); render(); break;
     case "prodmetric": state.prodMetric = arg; render(); break;
